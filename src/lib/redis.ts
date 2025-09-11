@@ -1,12 +1,14 @@
 import { Redis } from '@upstash/redis';
 import { mockRedis } from './redis-mock';
 
-const redis = process.env.NODE_ENV === 'development' && process.env.UPSTASH_REDIS_REST_URL === 'local://mock'
+const redis = process.env.NODE_ENV === 'development' && (!process.env.UPSTASH_REDIS_REST_URL || process.env.UPSTASH_REDIS_REST_URL === 'local://mock')
   ? mockRedis as any
-  : new Redis({
-      url: process.env.UPSTASH_REDIS_REST_URL!,
-      token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-    });
+  : process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
+  ? new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN,
+    })
+  : mockRedis as any;
 
 export async function storeOTP(key: string, otp: string, expirySeconds: number = 600) {
   await redis.setex(key, expirySeconds, otp);
