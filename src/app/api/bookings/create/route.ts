@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    // Get or create Stripe customer
+    // Get seeker user details
     const seekerUser = await prisma.user.findUnique({
       where: { id: session.user.id },
       include: { profile: true }

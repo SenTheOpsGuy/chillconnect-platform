@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { prisma } from '@/lib/db';
-import { processRefund } from '@/lib/payments/stripe';
 import { authOptions } from '@/lib/auth/config';
 
 export async function POST(
@@ -61,8 +60,9 @@ export async function POST(
     // Process refund if applicable
     if (refundAmount > 0 && booking.transactions.length > 0) {
       const transaction = booking.transactions.find(t => t.type === 'BOOKING_PAYMENT');
-      if (transaction?.stripeId) {
-        await processRefund(transaction.stripeId, refundAmount);
+      if (transaction?.paypalOrderId) {
+        // TODO: Implement PayPal refund functionality when needed
+        console.log(`Refund required: $${refundAmount} for PayPal order: ${transaction.paypalOrderId}`);
       }
     }
 

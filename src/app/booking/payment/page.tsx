@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { PayPalScriptProvider, PayPalButtons, usePayPalScriptReducer } from '@paypal/react-paypal-js';
 import { CreditCard, Lock, ArrowLeft } from 'lucide-react';
@@ -212,7 +212,13 @@ const paypalOptions = {
 export default function PaymentPage() {
   return (
     <PayPalScriptProvider options={paypalOptions}>
-      <PaymentForm />
+      <Suspense fallback={
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      }>
+        <PaymentForm />
+      </Suspense>
     </PayPalScriptProvider>
   );
 }

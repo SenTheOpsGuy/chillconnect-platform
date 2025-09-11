@@ -19,7 +19,6 @@ interface SystemSettings {
     minimumWithdrawal: number;
     paymentProcessors: {
       paypal: boolean;
-      stripe: boolean;
     };
   };
   notifications: {
@@ -57,8 +56,7 @@ export default function AdminSettingsPage() {
       commissionRate: 10,
       minimumWithdrawal: 1000,
       paymentProcessors: {
-        paypal: true,
-        stripe: false
+        paypal: true
       }
     },
     notifications: {
@@ -308,27 +306,7 @@ export default function AdminSettingsPage() {
                       payments: { 
                         ...prev.payments, 
                         paymentProcessors: { 
-                          ...prev.payments.paymentProcessors, 
                           paypal: e.target.checked 
-                        }
-                      }
-                    }))}
-                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <label className="text-sm text-gray-700">Stripe</label>
-                  <input
-                    type="checkbox"
-                    checked={settings.payments.paymentProcessors.stripe}
-                    onChange={(e) => setSettings(prev => ({
-                      ...prev,
-                      payments: { 
-                        ...prev.payments, 
-                        paymentProcessors: { 
-                          ...prev.payments.paymentProcessors, 
-                          stripe: e.target.checked 
                         }
                       }
                     }))}

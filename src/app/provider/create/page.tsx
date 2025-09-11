@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -37,7 +38,7 @@ const expertiseOptions = [
   'Consumer Protection'
 ];
 
-export default function CreateProviderPage() {
+function CreateProviderPageContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -521,5 +522,17 @@ export default function CreateProviderPage() {
         </form>
       </div>
     </div>
+  );
+}
+
+export default function CreateProviderPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    }>
+      <CreateProviderPageContent />
+    </Suspense>
   );
 }

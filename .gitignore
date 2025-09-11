@@ -89,3 +89,4 @@ certificates/
 /test-data/
 /seed-data/
 /fixtures/
+.env*.local
