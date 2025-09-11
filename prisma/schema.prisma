@@ -263,3 +263,14 @@ model DisputeCommunication {
   from        User      @relation("DisputeMessagesSent", fields: [fromUserId], references: [id])
   to          User?     @relation("DisputeMessagesReceived", fields: [toUserId], references: [id])
 }
+
+model OTPStorage {
+  id         String   @id @default(cuid())
+  key        String   @unique
+  value      String
+  expiresAt  DateTime @map("expires_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("OTPStorage")
+}

@@ -149,6 +149,19 @@ function LoginForm() {
           </button>
         </form>
 
+        {/* Alternative Login Methods */}
+        <div className="mt-6 pt-6 border-t border-gray-200">
+          <div className="text-center">
+            <p className="text-gray-600 mb-4">Or login with</p>
+            <Link
+              href={`/login-otp${callbackUrl !== '/dashboard' ? `?callbackUrl=${encodeURIComponent(callbackUrl)}` : ''}`}
+              className="inline-flex items-center justify-center w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-700 bg-white hover:bg-gray-50 font-medium mb-4"
+            >
+              Phone Number (OTP)
+            </Link>
+          </div>
+        </div>
+
         {/* Footer */}
         <div className="mt-6 text-center">
           <p className="text-gray-800">

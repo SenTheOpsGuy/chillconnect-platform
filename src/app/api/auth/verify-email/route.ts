@@ -46,13 +46,7 @@ export async function POST(req: NextRequest) {
     await prisma.user.update({
       where: { email },
       data: {
-        emailVerified: true,
-        wallet: {
-          create: {
-            balance: 0,
-            pendingAmount: 0
-          }
-        }
+        emailVerified: true
       }
     });
     
