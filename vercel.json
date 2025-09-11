@@ -1,0 +1,34 @@
+{
+  "buildCommand": "prisma generate && next build",
+  "devCommand": "next dev",
+  "installCommand": "npm install",
+  "framework": "nextjs",
+  "regions": ["bom1"],
+  "env": {
+    "NODE_ENV": "production"
+  },
+  "functions": {
+    "src/app/api/bookings/create/route.ts": {
+      "maxDuration": 30
+    },
+    "src/app/api/sessions/start/route.ts": {
+      "maxDuration": 30
+    },
+    "src/app/api/auth/register/route.ts": {
+      "maxDuration": 15
+    },
+    "src/app/api/chat/send/route.ts": {
+      "maxDuration": 10
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/reminders",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/chat-expiry",
+      "schedule": "0 * * * *"
+    }
+  ]
+}

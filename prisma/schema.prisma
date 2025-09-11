@@ -1,0 +1,265 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url = env("POSTGRES_PRISMA_URL")
+  directUrl = env("POSTGRES_URL_NON_POOLING")
+}
+
+enum UserRole {
+  SEEKER
+  PROVIDER
+  EMPLOYEE
+  SUPER_ADMIN
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  DISPUTED
+}
+
+enum TransactionType {
+  TOPUP
+  BOOKING_PAYMENT
+  REFUND
+  WITHDRAWAL
+  COMMISSION
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  REQUIRES_REVIEW
+}
+
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  ESCALATED
+}
+
+enum DisputeResolution {
+  REFUND_SEEKER
+  FAVOR_PROVIDER
+  PARTIAL_REFUND
+  NO_ACTION
+}
+
+model User {
+  id                String      @id @default(cuid())
+  email             String      @unique
+  phone             String?     @unique
+  password          String
+  role              UserRole    @default(SEEKER)
+  emailVerified     Boolean     @default(false)
+  phoneVerified     Boolean     @default(false)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  
+  profile                 Profile?
+  providerProfile         Provider?
+  seekerBookings          Booking[]               @relation("SeekerBookings")
+  providerBookings        Booking[]               @relation("ProviderBookings")
+  sentMessages            Message[]               @relation("SentMessages")
+  receivedMessages        Message[]               @relation("ReceivedMessages")
+  wallet                  Wallet?
+  transactions            Transaction[]
+  feedbackGiven           Feedback[]              @relation("FeedbackGiven")
+  feedbackReceived        Feedback[]              @relation("FeedbackReceived")
+  disputesInitiated       Dispute[]               @relation("DisputesInitiated")
+  disputesAssigned        Dispute[]               @relation("DisputesAssigned")
+  disputesResolved        DisputeResolutionRecord[] @relation("DisputesResolved")
+  disputeMessagesSent     DisputeCommunication[]  @relation("DisputeMessagesSent")
+  disputeMessagesReceived DisputeCommunication[]  @relation("DisputeMessagesReceived")
+}
+
+model Profile {
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  firstName     String
+  lastName      String
+  timezone      String    @default("Asia/Kolkata")
+  avatar        String?
+  address       String?
+  city          String?
+  state         String?
+  pincode       String?
+  bio           String?
+  education     String?
+  certifications String?
+  user          User      @relation(fields: [userId], references: [id])
+}
+
+model Provider {
+  id                  String              @id @default(cuid())
+  userId              String              @unique
+  expertise           String[]
+  yearsExperience     Int
+  hourlyRate          Float
+  bio                 String?
+  rating              Float               @default(0)
+  totalSessions       Int                 @default(0)
+  verificationStatus  VerificationStatus  @default(PENDING)
+  governmentId        String?
+  certificates        String[]
+  availability        Availability[]
+  user                User                @relation(fields: [userId], references: [id])
+}
+
+model Availability {
+  id          String    @id @default(cuid())
+  providerId  String
+  dayOfWeek   Int       // 0-6 (Sunday-Saturday)
+  startTime   String    // "09:00"
+  endTime     String    // "17:00"
+  provider    Provider  @relation(fields: [providerId], references: [id])
+}
+
+model Booking {
+  id            String        @id @default(cuid())
+  seekerId      String
+  providerId    String
+  startTime     DateTime
+  endTime       DateTime
+  status        BookingStatus @default(PENDING)
+  amount        Float
+  meetUrl       String?
+  recordingUrl  String?
+  createdAt     DateTime      @default(now())
+  
+  seeker        User          @relation("SeekerBookings", fields: [seekerId], references: [id])
+  provider      User          @relation("ProviderBookings", fields: [providerId], references: [id])
+  session       Session?
+  messages      Message[]
+  feedback      Feedback?
+  transactions  Transaction[]
+  dispute       Dispute?
+}
+
+model Session {
+  id              String    @id @default(cuid())
+  bookingId       String    @unique
+  startedAt       DateTime?
+  endedAt         DateTime?
+  recordingUrl    String?
+  chatExpiresAt   DateTime?
+  booking         Booking   @relation(fields: [bookingId], references: [id])
+}
+
+model Message {
+  id          String    @id @default(cuid())
+  bookingId   String
+  senderId    String
+  receiverId  String
+  content     String
+  createdAt   DateTime  @default(now())
+  
+  booking     Booking   @relation(fields: [bookingId], references: [id])
+  sender      User      @relation("SentMessages", fields: [senderId], references: [id])
+  receiver    User      @relation("ReceivedMessages", fields: [receiverId], references: [id])
+}
+
+model Wallet {
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  balance       Float     @default(0)
+  pendingAmount Float     @default(0)
+  user          User      @relation(fields: [userId], references: [id])
+}
+
+model Transaction {
+  id              String          @id @default(cuid())
+  userId          String
+  bookingId       String?
+  amount          Float
+  type            TransactionType
+  status          String          @default("pending")
+  stripeId        String?
+  paypalOrderId   String?
+  paypalCaptureId String?
+  createdAt       DateTime        @default(now())
+  
+  user        User            @relation(fields: [userId], references: [id])
+  booking     Booking?        @relation(fields: [bookingId], references: [id])
+}
+
+model Feedback {
+  id          String    @id @default(cuid())
+  bookingId   String    @unique
+  giverId     String
+  receiverId  String
+  rating      Int
+  comment     String?
+  createdAt   DateTime  @default(now())
+  
+  booking     Booking   @relation(fields: [bookingId], references: [id])
+  giver       User      @relation("FeedbackGiven", fields: [giverId], references: [id])
+  receiver    User      @relation("FeedbackReceived", fields: [receiverId], references: [id])
+}
+
+model UnmatchedRequest {
+  id              String    @id @default(cuid())
+  seekerEmail     String
+  seekerPhone     String?
+  expertise       String
+  preferredTime   DateTime?
+  budget          Float?
+  status          String    @default("pending")
+  assignedTo      String?   // Employee ID
+  createdAt       DateTime  @default(now())
+  resolvedAt      DateTime?
+}
+
+model Dispute {
+  id              String          @id @default(cuid())
+  bookingId       String          @unique
+  initiatedBy     String          // User ID who initiated dispute
+  reason          String
+  description     String?
+  status          DisputeStatus   @default(OPEN)
+  priority        String          @default("medium") // low, medium, high
+  assignedTo      String?         // Employee ID
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  
+  booking         Booking         @relation(fields: [bookingId], references: [id])
+  initiator       User            @relation("DisputesInitiated", fields: [initiatedBy], references: [id])
+  assignee        User?           @relation("DisputesAssigned", fields: [assignedTo], references: [id])
+  resolution      DisputeResolutionRecord?
+  communications  DisputeCommunication[]
+}
+
+model DisputeResolutionRecord {
+  id              String              @id @default(cuid())
+  disputeId       String              @unique
+  resolvedBy      String              // Employee ID
+  resolution      DisputeResolution
+  amount          Float?              // Amount refunded/awarded
+  notes           String?
+  resolvedAt      DateTime            @default(now())
+  
+  dispute         Dispute             @relation(fields: [disputeId], references: [id])
+  resolver        User                @relation("DisputesResolved", fields: [resolvedBy], references: [id])
+}
+
+model DisputeCommunication {
+  id          String    @id @default(cuid())
+  disputeId   String
+  fromUserId  String
+  toUserId    String?   // null for internal employee notes
+  message     String
+  isInternal  Boolean   @default(false) // true for employee-only notes
+  createdAt   DateTime  @default(now())
+  
+  dispute     Dispute   @relation(fields: [disputeId], references: [id])
+  from        User      @relation("DisputeMessagesSent", fields: [fromUserId], references: [id])
+  to          User?     @relation("DisputeMessagesReceived", fields: [toUserId], references: [id])
+}
