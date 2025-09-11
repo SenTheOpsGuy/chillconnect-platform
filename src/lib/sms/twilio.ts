@@ -1,13 +1,22 @@
 import twilio from 'twilio';
 
-const client = twilio(
-  process.env.TWILIO_ACCOUNT_SID,
-  process.env.TWILIO_AUTH_TOKEN
-);
+const getTwilioClient = () => {
+  if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN || 
+      !process.env.TWILIO_ACCOUNT_SID.startsWith('AC')) {
+    return null;
+  }
+  
+  return twilio(
+    process.env.TWILIO_ACCOUNT_SID,
+    process.env.TWILIO_AUTH_TOKEN
+  );
+};
 
 export async function sendVerificationSMS(phone: string) {
-  // In development mode with mock credentials, just log
-  if (process.env.NODE_ENV === 'development' && process.env.TWILIO_ACCOUNT_SID === 'development-mock-sid') {
+  const client = getTwilioClient();
+  
+  // If no valid Twilio client or in development mode, use mock
+  if (!client || process.env.NODE_ENV === 'development') {
     console.log('📱 [MOCK SMS VERIFICATION]');
     console.log('To:', phone);
     console.log('Message: Your verification code has been sent');
@@ -29,8 +38,10 @@ export async function sendVerificationSMS(phone: string) {
 }
 
 export async function verifyOTP(phone: string, code: string) {
-  // In development mode, accept any 6-digit code
-  if (process.env.NODE_ENV === 'development' && process.env.TWILIO_ACCOUNT_SID === 'development-mock-sid') {
+  const client = getTwilioClient();
+  
+  // If no valid Twilio client or in development mode, use mock
+  if (!client || process.env.NODE_ENV === 'development') {
     console.log('📱 [MOCK SMS VERIFICATION CHECK]');
     console.log('Phone:', phone);
     console.log('Code:', code);
@@ -57,6 +68,17 @@ export async function verifyOTP(phone: string, code: string) {
 }
 
 export async function sendReminderSMS(phone: string, message: string) {
+  const client = getTwilioClient();
+  
+  // If no valid Twilio client, use mock
+  if (!client) {
+    console.log('📱 [MOCK SMS SEND]');
+    console.log('To:', phone);
+    console.log('Message:', message);
+    console.log('-------------------');
+    return { success: true, sid: 'mock-sid' };
+  }
+
   try {
     const sms = await client.messages.create({
       body: message,
