@@ -8,10 +8,15 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
+    console.log('Booking cancellation request:', { bookingId: params.id });
+    
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      console.log('Cancellation failed: No session');
+      return NextResponse.json({ error: 'Unauthorized. Please log in again.' }, { status: 401 });
     }
+
+    console.log('Session user:', { userId: session.user.id, role: session.user.role });
 
     const booking = await prisma.booking.findUnique({
       where: { id: params.id },
@@ -23,21 +28,35 @@ export async function POST(
     });
 
     if (!booking) {
+      console.log('Cancellation failed: Booking not found', params.id);
       return NextResponse.json(
         { error: 'Booking not found' },
         { status: 404 }
       );
     }
 
+    console.log('Booking found:', { 
+      bookingId: booking.id, 
+      status: booking.status, 
+      seekerId: booking.seekerId, 
+      providerId: booking.providerId 
+    });
+
     // Check if user is authorized to cancel (seeker or provider)
     if (booking.seekerId !== session.user.id && booking.providerId !== session.user.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+      console.log('Cancellation failed: User not authorized', {
+        sessionUserId: session.user.id,
+        bookingSeekerId: booking.seekerId,
+        bookingProviderId: booking.providerId
+      });
+      return NextResponse.json({ error: 'You are not authorized to cancel this booking' }, { status: 403 });
     }
 
     // Check if booking can be cancelled
     if (booking.status !== 'PENDING' && booking.status !== 'CONFIRMED') {
+      console.log('Cancellation failed: Invalid status', { status: booking.status });
       return NextResponse.json(
-        { error: 'Booking cannot be cancelled' },
+        { error: `Booking cannot be cancelled. Current status: ${booking.status}` },
         { status: 400 }
       );
     }
@@ -66,11 +85,19 @@ export async function POST(
       }
     }
 
+    console.log('Proceeding with cancellation:', { 
+      refundAmount, 
+      refundPercentage, 
+      hoursDiff: hoursDiff.toFixed(2) 
+    });
+
     // Update booking status
     await prisma.booking.update({
       where: { id: params.id },
       data: { status: 'CANCELLED' }
     });
+
+    console.log('Booking cancelled successfully:', params.id);
 
     return NextResponse.json({
       message: 'Booking cancelled successfully',
@@ -78,8 +105,11 @@ export async function POST(
     });
   } catch (error) {
     console.error('Booking cancellation error:', error);
+    
+    // Return more specific error information
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     return NextResponse.json(
-      { error: 'Cancellation failed' },
+      { error: `Cancellation failed: ${errorMessage}` },
       { status: 500 }
     );
   }
