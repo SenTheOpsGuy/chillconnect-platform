@@ -55,38 +55,61 @@ export async function POST(req: NextRequest) {
       include: { profile: true }
     });
 
-    // Process payment
-    const paymentIntent = await createPaymentIntent(
-      amount,
-      seekerUser?.email || '',
-      { 
-        bookingId: booking.id,
-        providerId: provider.userId,
-        seekerId: session.user.id
-      }
-    );
+    try {
+      // Process payment
+      const paymentIntent = await createPaymentIntent(
+        amount,
+        seekerUser?.email || '',
+        { 
+          bookingId: booking.id,
+          providerId: provider.userId,
+          seekerId: session.user.id
+        }
+      );
 
-    // Create transaction record
-    await prisma.transaction.create({
-      data: {
-        userId: session.user.id,
+      // Create transaction record
+      await prisma.transaction.create({
+        data: {
+          userId: session.user.id,
+          bookingId: booking.id,
+          amount: amount,
+          type: 'BOOKING_PAYMENT',
+          status: 'pending',
+          paypalOrderId: paymentIntent.id
+        }
+      });
+      
+      // Return PayPal order data for client-side confirmation
+      return NextResponse.json({
         bookingId: booking.id,
-        amount: amount,
-        type: 'BOOKING_PAYMENT',
-        status: 'pending',
-        paypalOrderId: paymentIntent.id
-      }
-    });
-    
-    // Return PayPal order data for client-side confirmation
-    // Don't create meeting or confirm booking until payment succeeds
-    return NextResponse.json({
-      bookingId: booking.id,
-      paypalOrderId: paymentIntent.id,
-      approvalUrl: paymentIntent.approval_url,
-      amount,
-      status: 'payment_required'
-    });
+        paypalOrderId: paymentIntent.id,
+        approvalUrl: paymentIntent.approval_url,
+        amount,
+        status: 'payment_required'
+      });
+    } catch (paymentError) {
+      console.error('Payment processing error:', paymentError);
+      
+      // Fallback: Mark booking as PENDING payment and let user handle payment later
+      // Create a simple transaction record without PayPal integration
+      await prisma.transaction.create({
+        data: {
+          userId: session.user.id,
+          bookingId: booking.id,
+          amount: amount,
+          type: 'BOOKING_PAYMENT',
+          status: 'pending'
+        }
+      });
+      
+      return NextResponse.json({
+        bookingId: booking.id,
+        amount,
+        status: 'payment_pending',
+        message: 'Booking created successfully. Payment integration is currently unavailable. Please contact support to complete payment.',
+        fallback: true
+      });
+    }
   } catch (error) {
     console.error('Booking error:', error);
     return NextResponse.json(

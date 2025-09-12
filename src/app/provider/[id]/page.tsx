@@ -125,10 +125,23 @@ export default function ProviderProfilePage() {
       const data = await response.json();
 
       if (response.ok) {
-        // Redirect to payment page or show payment modal
-        if (data.clientSecret) {
-          router.push(`/booking/payment?booking=${data.bookingId}&client_secret=${data.clientSecret}`);
+        // Handle different response types
+        if (data.paypalOrderId && data.approvalUrl) {
+          // Redirect to PayPal approval URL for payment
+          window.location.href = data.approvalUrl;
+        } else if (data.status === 'payment_required' && data.bookingId) {
+          // Fallback: redirect to payment page
+          router.push(`/booking/payment?booking=${data.bookingId}&paypal_order=${data.paypalOrderId}`);
+        } else if (data.fallback || data.status === 'payment_pending') {
+          // Payment integration unavailable - show success with message
+          toast({
+            type: 'warning',
+            title: 'Booking Created',
+            message: data.message || 'Booking created successfully. Payment will be handled separately.'
+          });
+          router.push(`/bookings`);
         } else {
+          // Successful booking without payment issues
           router.push(`/bookings`);
         }
       } else {

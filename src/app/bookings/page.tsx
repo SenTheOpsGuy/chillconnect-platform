@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useToast } from '@/components/ui/toast';
 import { 
   Calendar, 
   Clock, 
@@ -33,6 +34,7 @@ interface Booking {
 export default function BookingsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const { toast } = useToast();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'upcoming' | 'completed' | 'cancelled'>('all');
@@ -98,13 +100,29 @@ export default function BookingsPage() {
           ? `Booking cancelled successfully. Refund of ₹${data.refundAmount} will be processed within 3-5 business days.`
           : 'Booking cancelled successfully.';
         
-        console.log(message);
+        toast({
+          type: 'success',
+          title: 'Booking Cancelled',
+          message: data.refundAmount > 0 
+            ? `Refund of ₹${data.refundAmount} will be processed within 3-5 business days.`
+            : 'Your booking has been cancelled successfully.'
+        });
       } else {
-        console.error(data.error || 'Failed to cancel booking');
+        const errorMessage = data.error || 'Failed to cancel booking';
+        console.error(errorMessage);
+        toast({
+          type: 'error',
+          title: 'Cancellation Failed',
+          message: errorMessage
+        });
       }
     } catch (error) {
       console.error('Error cancelling booking:', error);
-      console.error('Failed to cancel booking. Please try again.');
+      toast({
+        type: 'error',
+        title: 'Network Error',
+        message: 'Failed to cancel booking. Please check your connection and try again.'
+      });
     } finally {
       // Remove from cancelling set
       setCancellingBookings(prev => {
