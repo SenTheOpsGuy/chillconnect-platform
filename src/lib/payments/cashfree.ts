@@ -107,9 +107,9 @@ export async function createCashfreePaymentSession(
     console.log('Cashfree payment session created successfully:', response.data.order_id);
     console.log('Full Cashfree response:', response.data);
     
-    // For Cashfree, the payment URL is constructed using the payment session ID
-    const paymentUrl = `https://payments.cashfree.com/pay/order?session-id=${response.data.payment_session_id}`;
-    console.log('Constructed payment URL:', paymentUrl);
+    // Cashfree uses JavaScript SDK, not direct URLs
+    console.log('Payment session ID for SDK:', response.data.payment_session_id);
+    const paymentUrl = null; // Will use SDK on frontend
     
     return {
       success: true,

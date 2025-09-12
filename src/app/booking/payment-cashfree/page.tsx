@@ -4,12 +4,15 @@ import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { CreditCard, Lock, ArrowLeft, Clock, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
+import Script from 'next/script';
 
 function PaymentForm() {
   const searchParams = useSearchParams();
   
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState('');
+  const [paymentSessionId, setPaymentSessionId] = useState<string | null>(null);
+  const [cashfreeLoaded, setCashfreeLoaded] = useState(false);
   const [bookingDetails, setBookingDetails] = useState<{
     id: string;
     amount: number;
@@ -38,6 +41,16 @@ function PaymentForm() {
     if (bookingId) {
       fetchBookingDetails();
     }
+
+    // Check if Cashfree SDK is loaded
+    const checkCashfreeLoaded = () => {
+      if ((window as any).Cashfree) {
+        setCashfreeLoaded(true);
+      } else {
+        setTimeout(checkCashfreeLoaded, 100);
+      }
+    };
+    checkCashfreeLoaded();
   }, [bookingId, errorParam, messageParam]);
 
   const fetchBookingDetails = async () => {
@@ -71,18 +84,40 @@ function PaymentForm() {
 
       const data = await response.json();
 
-      if (response.ok && data.paymentUrl) {
-        // Redirect to Cashfree payment page
-        window.location.href = data.paymentUrl;
+      if (response.ok && data.paymentSessionId) {
+        setPaymentSessionId(data.paymentSessionId);
+        // Will trigger Cashfree SDK payment
       } else {
         setError(data.error || 'Failed to initiate payment');
+        setProcessing(false);
       }
     } catch (err) {
       setError('Network error. Please try again.');
-    } finally {
       setProcessing(false);
     }
   };
+
+  // Handle Cashfree SDK payment
+  useEffect(() => {
+    if (paymentSessionId && cashfreeLoaded) {
+      try {
+        const cashfree = (window as any).Cashfree({
+          mode: "production" // Change to "sandbox" for testing
+        });
+
+        const checkoutOptions = {
+          paymentSessionId: paymentSessionId,
+          redirectTarget: "_self"
+        };
+
+        cashfree.checkout(checkoutOptions);
+      } catch (error) {
+        console.error('Cashfree SDK error:', error);
+        setError('Failed to load payment page. Please try again.');
+        setProcessing(false);
+      }
+    }
+  }, [paymentSessionId, cashfreeLoaded]);
 
   if (!bookingDetails && !error) {
     return (
@@ -227,12 +262,20 @@ function PaymentForm() {
 
 export default function PaymentPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    }>
-      <PaymentForm />
-    </Suspense>
+    <>
+      <Script 
+        src="https://sdk.cashfree.com/js/v3/cashfree.js"
+        onLoad={() => {
+          // Script loaded callback will be handled in PaymentForm
+        }}
+      />
+      <Suspense fallback={
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      }>
+        <PaymentForm />
+      </Suspense>
+    </>
   );
 }

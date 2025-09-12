@@ -140,7 +140,7 @@ export async function POST(
 
     return NextResponse.json({
       success: true,
-      paymentUrl: paymentSession.paymentUrl,
+      paymentSessionId: paymentSession.paymentSessionId,
       orderId: paymentSession.orderId,
       amount: booking.amount
     });
