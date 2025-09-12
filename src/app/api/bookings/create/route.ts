@@ -83,6 +83,18 @@ export async function POST(req: NextRequest) {
     let paymentIntent;
     
     try {
+      console.log('Calling createPaymentIntent with:', {
+        amount,
+        email: seekerUser?.email,
+        metadata: { 
+          bookingId: booking.id,
+          providerId: provider.userId,
+          seekerId: session.user.id,
+          customerName: `${seekerUser?.profile?.firstName} ${seekerUser?.profile?.lastName}` || 'Customer',
+          customerPhone: seekerUser?.phone || '9999999999'
+        }
+      });
+      
       paymentIntent = await createPaymentIntent(
         amount,
         seekerUser?.email || '',
@@ -94,7 +106,12 @@ export async function POST(req: NextRequest) {
           customerPhone: seekerUser?.phone || '9999999999'
         }
       );
-      console.log('Cashfree payment session result:', { success: !!paymentIntent.id, orderId: paymentIntent.id });
+      console.log('Cashfree payment session result:', { 
+        success: !!paymentIntent?.id, 
+        orderId: paymentIntent?.id,
+        paymentUrl: paymentIntent?.payment_url,
+        fullResult: paymentIntent
+      });
     } catch (cashfreeError) {
       console.error('Cashfree payment session failed:', cashfreeError);
       

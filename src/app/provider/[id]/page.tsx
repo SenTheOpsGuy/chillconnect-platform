@@ -123,6 +123,11 @@ export default function ProviderProfilePage() {
       });
 
       const data = await response.json();
+      console.log('Booking creation response:', { 
+        ok: response.ok, 
+        status: response.status, 
+        data 
+      });
 
       if (response.ok) {
         // Handle different response types
