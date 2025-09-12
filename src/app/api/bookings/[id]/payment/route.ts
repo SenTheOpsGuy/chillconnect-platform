@@ -9,14 +9,21 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    console.log('Payment endpoint called for booking:', { params });
+    
     const session = await getServerSession(authOptions);
+    console.log('Session check result:', { hasSession: !!session, userId: session?.user?.id });
+    
     if (!session?.user?.id) {
+      console.log('Authentication failed - no session or user ID');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const { id } = await params;
+    console.log('Processing payment for booking ID:', id);
     
     // Get booking with provider and seeker details
+    console.log('Fetching booking from database...');
     const booking = await prisma.booking.findUnique({
       where: { id },
       include: {
@@ -27,8 +34,16 @@ export async function POST(
     });
 
     if (!booking) {
+      console.log('Booking not found:', id);
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
     }
+
+    console.log('Booking found:', { 
+      id: booking.id, 
+      status: booking.status, 
+      amount: booking.amount,
+      seekerId: booking.seekerId 
+    });
 
     // Check if user has access to this booking
     if (booking.seekerId !== session.user.id) {
@@ -131,9 +146,17 @@ export async function POST(
     });
 
   } catch (error) {
-    console.error('Payment session creation error:', error);
+    console.error('Payment session creation error:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : 'No stack trace',
+      error: error
+    });
+    
     return NextResponse.json(
-      { error: 'Failed to create payment session' },
+      { 
+        error: 'Failed to create payment session',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     );
   }
