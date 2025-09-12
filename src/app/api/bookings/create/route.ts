@@ -19,20 +19,33 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
+    console.log('Booking request body:', body);
     const { providerId, startTime, duration } = bookingSchema.parse(body);
+    console.log('Parsed booking data:', { providerId, startTime, duration });
     
-    // Get provider details
-    const provider = await prisma.provider.findUnique({
+    // Get provider details - providerId could be either Provider.id or User.id
+    let provider = await prisma.provider.findUnique({
       where: { id: providerId },
       include: { user: { include: { profile: true } } }
     });
     
+    // If not found by Provider.id, try finding by User.id (userId)
     if (!provider) {
+      provider = await prisma.provider.findUnique({
+        where: { userId: providerId },
+        include: { user: { include: { profile: true } } }
+      });
+    }
+    
+    if (!provider) {
+      console.log('Provider not found with providerId:', providerId);
       return NextResponse.json(
         { error: 'Provider not found' },
         { status: 404 }
       );
     }
+    
+    console.log('Found provider:', { id: provider.id, userId: provider.userId, hourlyRate: provider.hourlyRate });
     
     // Calculate amount
     const amount = (provider.hourlyRate * duration) / 60;
@@ -56,6 +69,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Process payment with PayPal
+    console.log('Creating PayPal payment intent:', { amount, seekerEmail: seekerUser?.email });
     const paymentIntent = await createPaymentIntent(
       amount,
       seekerUser?.email || '',
@@ -65,6 +79,7 @@ export async function POST(req: NextRequest) {
         seekerId: session.user.id
       }
     );
+    console.log('PayPal payment intent result:', { success: !!paymentIntent.id, orderId: paymentIntent.id });
 
     // Create transaction record
     await prisma.transaction.create({
@@ -87,9 +102,18 @@ export async function POST(req: NextRequest) {
       status: 'payment_required'
     });
   } catch (error) {
-    console.error('Booking error:', error);
+    console.error('Booking creation error:', error);
+    
+    // Provide more specific error messages for debugging
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: 'Invalid booking data', details: error.errors },
+        { status: 400 }
+      );
+    }
+    
     return NextResponse.json(
-      { error: 'Booking failed' },
+      { error: error instanceof Error ? error.message : 'Booking failed' },
       { status: 500 }
     );
   }
