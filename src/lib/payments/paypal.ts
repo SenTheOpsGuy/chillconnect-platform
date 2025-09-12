@@ -1,8 +1,8 @@
 import paypal from '@paypal/checkout-server-sdk';
 
-// Live PayPal credentials
-const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID || 'AaghXrUa1C5rncU5bveBCrwjH7cQO4LlEGws01N7e_q04u1_fvOuKeWluSg8olfQEw5ynh8Jil-Mre19';
-const PAYPAL_CLIENT_SECRET = process.env.PAYPAL_CLIENT_SECRET || 'EJ0p7oP_L_yiwifZpOwQ4vAjVjfBSxd9DZj4EZUj0U9AbG7LDJD725ZWg_qwx9O2HUMUVREP7ClJzLds';
+// PayPal credentials from environment variables only
+const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID;
+const PAYPAL_CLIENT_SECRET = process.env.PAYPAL_CLIENT_SECRET;
 
 // Check if PayPal is properly configured
 const isPayPalConfigured = () => {
@@ -26,6 +26,14 @@ const client = () => {
 
 export async function createPayPalOrder(amount: number, bookingId: string) {
   console.log('Creating PayPal order:', { amount, bookingId, configured: isPayPalConfigured() });
+  
+  if (!isPayPalConfigured()) {
+    console.error('PayPal credentials not configured');
+    return { 
+      success: false, 
+      error: 'PayPal payment is currently unavailable. Please contact support.' 
+    };
+  }
   
   const request = new paypal.orders.OrdersCreateRequest();
   request.prefer("return=representation");
