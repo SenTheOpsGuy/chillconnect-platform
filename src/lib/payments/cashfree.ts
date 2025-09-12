@@ -13,7 +13,9 @@ const isCashfreeConfigured = () => {
     hasAppId: !!CASHFREE_APP_ID, 
     hasSecretKey: !!CASHFREE_SECRET_KEY,
     configured,
-    baseUrl: CASHFREE_BASE_URL
+    baseUrl: CASHFREE_BASE_URL,
+    appId: CASHFREE_APP_ID ? `${CASHFREE_APP_ID.substring(0, 4)}...` : 'undefined',
+    secretKey: CASHFREE_SECRET_KEY ? `${CASHFREE_SECRET_KEY.substring(0, 4)}...` : 'undefined'
   });
   return configured;
 };
@@ -63,10 +65,14 @@ export async function createCashfreePaymentSession(
   });
   
   if (!isCashfreeConfigured()) {
-    console.error('Cashfree credentials not configured');
+    const missingConfig = [];
+    if (!CASHFREE_APP_ID) missingConfig.push('CASHFREE_APP_ID');
+    if (!CASHFREE_SECRET_KEY) missingConfig.push('CASHFREE_SECRET_KEY');
+    
+    console.error('Cashfree credentials not configured. Missing:', missingConfig.join(', '));
     return { 
       success: false, 
-      error: 'Payment gateway is currently unavailable. Please contact support.' 
+      error: `Payment gateway configuration incomplete. Missing: ${missingConfig.join(', ')}. Please contact support.`
     };
   }
 
@@ -86,7 +92,7 @@ export async function createCashfreePaymentSession(
     order_meta: {
       return_url: returnUrl,
       notify_url: `${process.env.NEXTAUTH_URL}/api/payments/cashfree/webhook`,
-      payment_methods: 'cc,dc,upi,nb,wallet,emi'
+      payment_methods: 'cc,dc,upi,nb,paylater,emi'
     },
     order_note: bookingDetails.description || `ChillConnect consultation booking - ${bookingId}`
   };
@@ -99,12 +105,17 @@ export async function createCashfreePaymentSession(
     );
 
     console.log('Cashfree payment session created successfully:', response.data.order_id);
+    console.log('Full Cashfree response:', response.data);
+    
+    // For Cashfree, the payment URL is constructed using the payment session ID
+    const paymentUrl = `https://payments.cashfree.com/pay/order?session-id=${response.data.payment_session_id}`;
+    console.log('Constructed payment URL:', paymentUrl);
     
     return {
       success: true,
       orderId: response.data.order_id,
       paymentSessionId: response.data.payment_session_id,
-      paymentUrl: response.data.payment_links?.web || null,
+      paymentUrl: paymentUrl,
       cfOrderId: response.data.cf_order_id
     };
   } catch (error: any) {

@@ -1,13 +1,12 @@
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { CreditCard, Lock, ArrowLeft, Clock, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 
 function PaymentForm() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState('');
@@ -27,8 +26,6 @@ function PaymentForm() {
   } | null>(null);
   
   const bookingId = searchParams.get('booking');
-  const orderId = searchParams.get('order_id');
-  const gateway = searchParams.get('gateway');
   const errorParam = searchParams.get('error');
   const statusParam = searchParams.get('status');
   const messageParam = searchParams.get('message');
@@ -66,15 +63,10 @@ function PaymentForm() {
       setProcessing(true);
       setError('');
 
-      // Create new payment session for retry
-      const response = await fetch('/api/bookings/create', {
+      // Create payment session for existing booking
+      const response = await fetch(`/api/bookings/${bookingId}/payment`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          providerId: 'provider-id', // This would need to be provided from booking details
-          startTime: bookingDetails.startTime,
-          duration: Math.ceil((new Date(bookingDetails.endTime).getTime() - new Date(bookingDetails.startTime).getTime()) / 60000)
-        })
+        headers: { 'Content-Type': 'application/json' }
       });
 
       const data = await response.json();
