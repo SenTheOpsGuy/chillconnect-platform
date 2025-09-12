@@ -22,8 +22,12 @@ export async function POST(
       where: { id: params.id },
       include: { 
         transactions: true,
-        seeker: true,
-        provider: { include: { user: true } }
+        seeker: {
+          include: { profile: true }
+        },
+        provider: {
+          include: { profile: true }
+        }
       }
     });
 
