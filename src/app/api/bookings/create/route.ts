@@ -159,7 +159,7 @@ export async function POST(req: NextRequest) {
     // Provide more specific error messages for debugging
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Invalid booking data', details: error.errors },
+        { error: 'Invalid booking data', details: error.issues },
         { status: 400 }
       );
     }
