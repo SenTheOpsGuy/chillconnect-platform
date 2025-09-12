@@ -6,12 +6,23 @@ const PAYPAL_CLIENT_SECRET = process.env.PAYPAL_CLIENT_SECRET;
 
 // Check if PayPal is properly configured
 const isPayPalConfigured = () => {
-  return !!(PAYPAL_CLIENT_ID && PAYPAL_CLIENT_SECRET);
+  const configured = !!(PAYPAL_CLIENT_ID && PAYPAL_CLIENT_SECRET);
+  console.log('PayPal configuration check:', { 
+    hasClientId: !!PAYPAL_CLIENT_ID, 
+    hasClientSecret: !!PAYPAL_CLIENT_SECRET,
+    configured 
+  });
+  return configured;
 };
 
 // PayPal environment setup - using live environment
 const environment = () => {
   const mode = process.env.PAYPAL_MODE || 'live'; // Default to live mode
+  console.log('PayPal environment setup:', { mode });
+  
+  if (!PAYPAL_CLIENT_ID || !PAYPAL_CLIENT_SECRET) {
+    throw new Error('PayPal credentials not configured');
+  }
   
   if (mode === 'live') {
     return new paypal.core.LiveEnvironment(PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET);
@@ -21,7 +32,12 @@ const environment = () => {
 };
 
 const client = () => {
-  return new paypal.core.PayPalHttpClient(environment());
+  try {
+    return new paypal.core.PayPalHttpClient(environment());
+  } catch (error) {
+    console.error('Failed to create PayPal client:', error);
+    throw error;
+  }
 };
 
 export async function createPayPalOrder(amount: number, bookingId: string) {
@@ -70,11 +86,25 @@ export async function createPayPalOrder(amount: number, bookingId: string) {
       orderId: response.result.id,
       approvalUrl: response.result.links.find((link: any) => link.rel === 'approve')?.href
     };
-  } catch (error) {
-    console.error('PayPal order creation error:', error);
+  } catch (error: any) {
+    console.error('PayPal order creation error:', {
+      message: error.message,
+      statusCode: error.statusCode,
+      headers: error.headers,
+      details: error.details || error
+    });
+    
+    let errorMessage = 'PayPal order creation failed';
+    if (error.statusCode) {
+      errorMessage += ` (Status: ${error.statusCode})`;
+    }
+    if (error.message) {
+      errorMessage += `: ${error.message}`;
+    }
+    
     return { 
       success: false, 
-      error: `PayPal order creation failed: ${error instanceof Error ? error.message : 'Unknown error'}` 
+      error: errorMessage
     };
   }
 }
@@ -189,7 +219,8 @@ export async function createPaymentIntent(
       approval_url: order.approvalUrl // PayPal-specific field
     };
   } else {
-    throw new Error('PayPal order creation failed');
+    console.error('PayPal order creation failed:', order.error);
+    throw new Error(`PayPal order creation failed: ${order.error || 'Unknown error'}`);
   }
 }
 
