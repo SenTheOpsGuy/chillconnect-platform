@@ -12,8 +12,10 @@ import {
   Phone,
   Video,
   Paperclip,
-  Smile
+  Smile,
+  ArrowLeft
 } from 'lucide-react';
+import Link from 'next/link';
 
 interface Message {
   id: string;
@@ -245,6 +247,13 @@ export default function MessagesPage() {
       <div className="w-1/3 bg-white border-r border-gray-200 flex flex-col">
         {/* Header */}
         <div className="p-4 border-b border-gray-200">
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center text-blue-600 hover:text-blue-700 mb-3"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Dashboard
+          </Link>
           <h1 className="text-xl font-semibold text-gray-900">Messages</h1>
           <div className="mt-3 relative">
             <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-900" />

@@ -3,6 +3,7 @@
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { 
   Bell, 
   Shield, 
@@ -162,13 +163,13 @@ export default function SettingsPage() {
         <div className="container mx-auto px-6 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <button
-                onClick={() => router.back()}
-                className="flex items-center space-x-2 text-gray-900 hover:text-gray-900"
+              <Link
+                href="/dashboard"
+                className="flex items-center space-x-2 text-blue-600 hover:text-blue-700"
               >
                 <ArrowLeft className="w-5 h-5" />
-                <span>Back</span>
-              </button>
+                <span>Back to Dashboard</span>
+              </Link>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
                 <p className="text-gray-900">Manage your account preferences</p>

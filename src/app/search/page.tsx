@@ -3,7 +3,7 @@
 import { Suspense, useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Star, MapPin, Clock, Filter, Search } from 'lucide-react';
+import { Star, MapPin, Clock, Filter, Search, ArrowLeft } from 'lucide-react';
 
 interface Provider {
   id: string;
@@ -99,6 +99,13 @@ function SearchPageContent() {
       {/* Header */}
       <div className="bg-white shadow-sm">
         <div className="container mx-auto px-6 py-4">
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center text-blue-600 hover:text-blue-700 mb-4"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Dashboard
+          </Link>
           <div className="flex items-center justify-between">
             <Link href="/" className="text-2xl font-bold text-blue-600">
               ChillConnect

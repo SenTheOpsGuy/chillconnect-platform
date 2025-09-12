@@ -3,7 +3,7 @@
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Calendar, Clock, Video, User, Star, MessageCircle, FileText } from 'lucide-react';
+import { Calendar, Clock, Video, User, Star, MessageCircle, FileText, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
 interface SessionData {
@@ -182,6 +182,13 @@ export default function SessionsPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-6 py-8">
+        <Link
+          href="/dashboard"
+          className="inline-flex items-center text-blue-600 hover:text-blue-700 mb-6"
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back to Dashboard
+        </Link>
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">My Sessions</h1>
           <p className="text-gray-900">View and manage your consultation sessions</p>
