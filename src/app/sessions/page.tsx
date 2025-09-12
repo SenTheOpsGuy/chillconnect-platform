@@ -55,7 +55,16 @@ export default function SessionsPage() {
       const data = await response.json();
       
       if (response.ok) {
-        setSessions(data.sessions);
+        // Ensure sessions is an array and has proper structure
+        const sessionsData = Array.isArray(data.sessions) ? data.sessions : [];
+        // Add null checks for each session item
+        const validSessions = sessionsData.map(session => ({
+          ...session,
+          provider: session.provider || { name: 'Unknown Provider', expertise: [], rating: 0 },
+          seeker: session.seeker || { name: 'Unknown User', email: '' },
+          booking: session.booking || { amount: 0, startTime: new Date().toISOString(), endTime: new Date().toISOString(), meetUrl: null }
+        }));
+        setSessions(validSessions);
       } else {
         console.error('Failed to fetch sessions:', data.error);
         setSessions([]);
@@ -63,6 +72,7 @@ export default function SessionsPage() {
       setLoading(false);
     } catch (error) {
       console.error('Failed to fetch sessions:', error);
+      // Fall back to empty array with proper structure
       setSessions([]);
       setLoading(false);
     }
@@ -131,7 +141,9 @@ export default function SessionsPage() {
     }
   };
 
-  const filteredSessions = sessions.filter(sessionItem => {
+  const filteredSessions = (Array.isArray(sessions) ? sessions : []).filter(sessionItem => {
+    if (!sessionItem || !sessionItem.status) return false;
+    
     switch (activeTab) {
       case 'upcoming':
         return sessionItem.status === 'SCHEDULED' || sessionItem.status === 'IN_PROGRESS';
@@ -180,9 +192,9 @@ export default function SessionsPage() {
           <div className="border-b border-gray-200">
             <nav className="-mb-px flex space-x-8 px-6">
               {[
-                { key: 'upcoming', label: 'Upcoming', count: sessions.filter(s => s.status === 'SCHEDULED' || s.status === 'IN_PROGRESS').length },
-                { key: 'completed', label: 'Completed', count: sessions.filter(s => s.status === 'COMPLETED').length },
-                { key: 'all', label: 'All Sessions', count: sessions.length }
+                { key: 'upcoming', label: 'Upcoming', count: (Array.isArray(sessions) ? sessions : []).filter(s => s && (s.status === 'SCHEDULED' || s.status === 'IN_PROGRESS')).length },
+                { key: 'completed', label: 'Completed', count: (Array.isArray(sessions) ? sessions : []).filter(s => s && s.status === 'COMPLETED').length },
+                { key: 'all', label: 'All Sessions', count: Array.isArray(sessions) ? sessions.length : 0 }
               ].map((tab) => (
                 <button
                   key={tab.key}
@@ -236,7 +248,10 @@ export default function SessionsPage() {
                         </div>
                         <div>
                           <h3 className="text-lg font-semibold text-gray-900">
-                            {session?.user?.role === 'PROVIDER' ? sessionItem.seeker.name : sessionItem.provider.name}
+                            {session?.user?.role === 'PROVIDER' 
+                              ? sessionItem.seeker?.name || 'Unknown User'
+                              : sessionItem.provider?.name || 'Unknown Provider'
+                            }
                           </h3>
                           <div className="flex items-center space-x-2">
                             <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(sessionItem.status)}`}>
@@ -245,7 +260,7 @@ export default function SessionsPage() {
                             {session?.user?.role !== 'PROVIDER' && (
                               <div className="flex items-center space-x-1">
                                 <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                                <span className="text-sm text-gray-900">{sessionItem.provider.rating}</span>
+                                <span className="text-sm text-gray-900">{sessionItem.provider?.rating || 'N/A'}</span>
                               </div>
                             )}
                           </div>
@@ -281,7 +296,7 @@ export default function SessionsPage() {
                           <FileText className="w-5 h-5 text-gray-900" />
                           <div>
                             <p className="text-sm text-gray-900">Expertise</p>
-                            <p className="font-medium text-gray-900">{sessionItem.provider.expertise.join(', ')}</p>
+                            <p className="font-medium text-gray-900">{sessionItem.provider?.expertise?.join(', ') || 'N/A'}</p>
                           </div>
                         </div>
                       )}

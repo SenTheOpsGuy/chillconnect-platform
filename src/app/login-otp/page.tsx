@@ -64,19 +64,32 @@ function LoginOTPContent() {
 
       const data = await response.json();
 
+      console.log('OTP verification response:', {
+        status: response.status,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries()),
+        data
+      });
+
       if (response.ok) {
-        // Trigger NextAuth session refresh
+        console.log('OTP verification successful:', data);
+        
+        // Use NextAuth signIn with user data from OTP verification
         const result = await signIn('credentials', {
           redirect: false,
-          token: 'otp-login-success' // Signal that this is an OTP login
+          email: data.user.email,
+          token: JSON.stringify(data.user) // Pass user data as token
         });
 
         if (result?.ok) {
+          console.log('NextAuth signIn successful, redirecting to:', callbackUrl);
           router.push(callbackUrl);
         } else {
+          console.error('NextAuth signIn failed:', result);
           setError('Login failed. Please try again.');
         }
       } else {
+        console.log('OTP verification failed:', data);
         setError(data.error || 'Invalid OTP code');
       }
     } catch (err) {

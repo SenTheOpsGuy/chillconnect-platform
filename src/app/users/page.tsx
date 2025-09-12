@@ -198,9 +198,11 @@ export default function UsersPage() {
             } else {
               const data = await response.json();
               console.error(`Failed to delete user: ${data.error}`);
+              alert(`Failed to delete user: ${data.error}`);
             }
           } catch (err) {
             console.error('Failed to delete user');
+            alert('Failed to delete user. Please try again.');
           }
         }
         break;
@@ -250,9 +252,21 @@ export default function UsersPage() {
               <h1 className="text-2xl font-bold text-gray-900">User Management</h1>
               <p className="text-gray-800">Manage all platform users and their permissions</p>
             </div>
-            <div className="text-right">
-              <p className="text-2xl font-bold text-gray-900">{pagination.total}</p>
-              <p className="text-gray-800 text-sm">Total Users</p>
+            <div className="flex items-center space-x-4">
+              {/* Create Employee Button */}
+              <Link
+                href="/admin/create-employee"
+                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              >
+                <User className="w-4 h-4 mr-2" />
+                Create Employee
+              </Link>
+              
+              {/* User Count */}
+              <div className="text-right">
+                <p className="text-2xl font-bold text-gray-900">{pagination.total}</p>
+                <p className="text-gray-800 text-sm">Total Users</p>
+              </div>
             </div>
           </div>
         </div>
@@ -401,17 +415,20 @@ export default function UsersPage() {
                               </button>
                             )}
                             
-                            <button
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                handleUserAction(user.id, 'delete');
-                              }}
-                              className="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left"
-                            >
-                              <Ban className="w-4 h-4 mr-2" />
-                              Delete User
-                            </button>
+                            {/* Only show delete button for non-Super Admin users, and prevent self-deletion */}
+                            {user.role !== 'SUPER_ADMIN' && user.id !== session?.user?.id && (
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleUserAction(user.id, 'delete');
+                                }}
+                                className="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left"
+                              >
+                                <Ban className="w-4 h-4 mr-2" />
+                                Delete User
+                              </button>
+                            )}
                           </div>
                         </div>
                       )}

@@ -9,10 +9,40 @@ export const authOptions: NextAuthOptions = {
       name: "credentials",
       credentials: {
         email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" }
+        password: { label: "Password", type: "password" },
+        token: { label: "Token", type: "text" }
       },
       async authorize(credentials) {
-        console.log('🔐 Authorize called with:', { email: credentials?.email, hasPassword: !!credentials?.password });
+        console.log('🔐 Authorize called with:', { 
+          email: credentials?.email, 
+          hasPassword: !!credentials?.password,
+          hasToken: !!credentials?.token
+        });
+        
+        // Handle OTP login with user data from successful verification
+        if (credentials?.token && credentials?.email && credentials?.token !== 'password') {
+          console.log('✅ OTP login credentials detected');
+          
+          try {
+            // Parse user data from OTP verification
+            const userData = JSON.parse(credentials.token);
+            
+            console.log('✅ OTP user data parsed:', { 
+              email: userData.email, 
+              role: userData.role 
+            });
+            
+            return {
+              id: userData.id,
+              email: userData.email,
+              role: userData.role,
+              name: userData.profile ? `${userData.profile.firstName} ${userData.profile.lastName}` : userData.email
+            };
+          } catch (error) {
+            console.error('❌ Error parsing OTP user data:', error);
+            return null;
+          }
+        }
         
         if (!credentials?.email || !credentials?.password) {
           console.log('❌ Missing email or password');

@@ -47,24 +47,26 @@ export async function POST(req: NextRequest) {
     }
 
     // Verify OTP with Twilio
+    console.log('Verifying OTP with Twilio:', { phone, code: code.substring(0, 3) + '***' });
     const verification = await verifyOTP(phone, code);
     
+    console.log('Twilio verification result:', {
+      success: verification.success,
+      status: verification.status,
+      error: verification.error
+    });
+    
     if (!verification.success || verification.status !== 'approved') {
+      console.log('OTP verification failed:', verification);
       return NextResponse.json(
         { error: 'Invalid or expired OTP code.' },
         { status: 400 }
       );
     }
+    
+    console.log('OTP verification successful, proceeding with login');
 
-    // Generate JWT token for the session
-    const token = signToken({
-      userId: user.id,
-      email: user.email,
-      phone: user.phone,
-      role: user.role
-    });
-
-    // Create session response
+    // Create session response with user data for frontend to use with NextAuth
     const response = NextResponse.json({
       success: true,
       message: 'Login successful',
@@ -79,15 +81,7 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    // Set HTTP-only cookie for session
-    response.cookies.set('auth-token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-      path: '/'
-    });
-
+    console.log('OTP login successful, returning user data for NextAuth integration');
     return response;
 
   } catch (error) {

@@ -36,6 +36,7 @@ export default withAuth(
         const publicRoutes = [
           '/',
           '/login',
+          '/login-otp',
           '/register',
           '/verify-email',
           '/search',

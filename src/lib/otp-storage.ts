@@ -4,19 +4,34 @@ import { prisma } from '@/lib/db';
 export async function storeOTP(key: string, otp: string, expirySeconds: number = 600) {
   const expiresAt = new Date(Date.now() + expirySeconds * 1000);
   
-  // Use upsert to handle key conflicts
-  await prisma.$executeRaw`
-    INSERT INTO "OTPStorage" (key, value, expires_at, created_at, updated_at)
-    VALUES (${key}, ${otp}, ${expiresAt}, NOW(), NOW())
-    ON CONFLICT (key) 
-    DO UPDATE SET 
-      value = ${otp},
-      expires_at = ${expiresAt},
-      updated_at = NOW()
-  `;
+  console.log('DB OTP Storage: Storing OTP', { 
+    key: key.substring(0, 15) + '...', 
+    expiresAt: expiresAt.toISOString(),
+    expirySeconds 
+  });
+  
+  try {
+    // Use upsert to handle key conflicts
+    const result = await prisma.$executeRaw`
+      INSERT INTO "OTPStorage" (key, value, expires_at, created_at, updated_at)
+      VALUES (${key}, ${otp}, ${expiresAt}, NOW(), NOW())
+      ON CONFLICT (key) 
+      DO UPDATE SET 
+        value = ${otp},
+        expires_at = ${expiresAt},
+        updated_at = NOW()
+    `;
+    
+    console.log('DB OTP Storage: OTP stored successfully', { result });
+  } catch (error) {
+    console.error('DB OTP Storage: Error storing OTP', error);
+    throw error;
+  }
 }
 
 export async function getOTP(key: string): Promise<string | null> {
+  console.log('DB OTP Storage: Getting OTP', { key: key.substring(0, 15) + '...' });
+  
   try {
     const result = await prisma.$queryRaw<Array<{ value: string; expires_at: Date }>>`
       SELECT value, expires_at 
@@ -26,15 +41,22 @@ export async function getOTP(key: string): Promise<string | null> {
       LIMIT 1
     `;
     
+    console.log('DB OTP Storage: Query result', { 
+      found: result.length > 0,
+      resultCount: result.length 
+    });
+    
     if (result.length === 0) {
       // Clean up expired entries
       await deleteOTP(key);
       return null;
     }
     
-    return result[0].value;
+    const otp = result[0].value;
+    console.log('DB OTP Storage: OTP retrieved successfully');
+    return otp;
   } catch (error) {
-    console.error('Error retrieving OTP:', error);
+    console.error('DB OTP Storage: Error retrieving OTP', error);
     return null;
   }
 }
