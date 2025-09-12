@@ -1,20 +1,22 @@
 import paypal from '@paypal/checkout-server-sdk';
 
-// PayPal environment setup with your sandbox credentials
+// Live PayPal credentials
+const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID || 'AaghXrUa1C5rncU5bveBCrwjH7cQO4LlEGws01N7e_q04u1_fvOuKeWluSg8olfQEw5ynh8Jil-Mre19';
+const PAYPAL_CLIENT_SECRET = process.env.PAYPAL_CLIENT_SECRET || 'EJ0p7oP_L_yiwifZpOwQ4vAjVjfBSxd9DZj4EZUj0U9AbG7LDJD725ZWg_qwx9O2HUMUVREP7ClJzLds';
+
+// Check if PayPal is properly configured
+const isPayPalConfigured = () => {
+  return !!(PAYPAL_CLIENT_ID && PAYPAL_CLIENT_SECRET);
+};
+
+// PayPal environment setup - using live environment
 const environment = () => {
-  const mode = process.env.PAYPAL_MODE || 'sandbox';
+  const mode = process.env.PAYPAL_MODE || 'live'; // Default to live mode
   
   if (mode === 'live') {
-    return new paypal.core.LiveEnvironment(
-      process.env.PAYPAL_CLIENT_ID!,
-      process.env.PAYPAL_CLIENT_SECRET!
-    );
+    return new paypal.core.LiveEnvironment(PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET);
   } else {
-    // Using sandbox environment with your provided credentials
-    return new paypal.core.SandboxEnvironment(
-      process.env.PAYPAL_CLIENT_ID!,
-      process.env.PAYPAL_CLIENT_SECRET!
-    );
+    return new paypal.core.SandboxEnvironment(PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET);
   }
 };
 
@@ -23,13 +25,16 @@ const client = () => {
 };
 
 export async function createPayPalOrder(amount: number, bookingId: string) {
+  console.log('Creating PayPal order:', { amount, bookingId, configured: isPayPalConfigured() });
+  
   const request = new paypal.orders.OrdersCreateRequest();
   request.prefer("return=representation");
+  
   request.requestBody({
     intent: 'CAPTURE',
     application_context: {
-      return_url: `${process.env.NEXTAUTH_URL}/api/payments/paypal/success`,
-      cancel_url: `${process.env.NEXTAUTH_URL}/api/payments/paypal/cancel`,
+      return_url: `${process.env.NEXTAUTH_URL || 'https://newchillconnect-bduad36rf-rishovs-projects.vercel.app'}/api/payments/paypal/success`,
+      cancel_url: `${process.env.NEXTAUTH_URL || 'https://newchillconnect-bduad36rf-rishovs-projects.vercel.app'}/api/payments/paypal/cancel`,
       brand_name: 'ChillConnect',
       locale: 'en-IN',
       landing_page: 'BILLING',
@@ -40,16 +45,18 @@ export async function createPayPalOrder(amount: number, bookingId: string) {
       {
         reference_id: bookingId,
         amount: {
-          currency_code: 'USD',
-          value: amount.toFixed(2)
+          currency_code: 'USD', // PayPal live account supports USD
+          value: (amount / 83).toFixed(2) // Convert INR to USD (approx rate)
         },
-        description: 'ChillConnect Consultation Booking'
+        description: `ChillConnect Consultation - ₹${amount.toLocaleString()} INR`
       }
     ]
   });
 
   try {
     const response = await client().execute(request);
+    console.log('PayPal order created successfully:', response.result.id);
+    
     return {
       success: true,
       orderId: response.result.id,
@@ -57,16 +64,23 @@ export async function createPayPalOrder(amount: number, bookingId: string) {
     };
   } catch (error) {
     console.error('PayPal order creation error:', error);
-    return { success: false, error };
+    return { 
+      success: false, 
+      error: `PayPal order creation failed: ${error instanceof Error ? error.message : 'Unknown error'}` 
+    };
   }
 }
 
 export async function capturePayPalOrder(orderId: string) {
+  console.log('Capturing PayPal order:', orderId);
+  
   const request = new paypal.orders.OrdersCaptureRequest(orderId);
   request.requestBody({});
 
   try {
     const response = await client().execute(request);
+    console.log('PayPal order captured successfully:', response.result.id);
+    
     return {
       success: true,
       captureId: response.result.purchase_units[0].payments.captures[0].id,
@@ -75,7 +89,10 @@ export async function capturePayPalOrder(orderId: string) {
     };
   } catch (error) {
     console.error('PayPal capture error:', error);
-    return { success: false, error };
+    return { 
+      success: false, 
+      error: `PayPal capture failed: ${error instanceof Error ? error.message : 'Unknown error'}` 
+    };
   }
 }
 
