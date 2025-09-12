@@ -39,9 +39,14 @@ export async function GET(req: NextRequest) {
         hasAppId: !!process.env.CASHFREE_APP_ID,
         hasSecretKey: !!process.env.CASHFREE_SECRET_KEY,
         baseUrl: process.env.CASHFREE_BASE_URL,
-        nextAuthUrl: process.env.NEXTAUTH_URL
+        nextAuthUrl: process.env.NEXTAUTH_URL,
+        appIdLength: process.env.CASHFREE_APP_ID?.length,
+        secretKeyLength: process.env.CASHFREE_SECRET_KEY?.length,
+        baseUrlTrimmed: process.env.CASHFREE_BASE_URL?.trim(),
+        nextAuthUrlTrimmed: process.env.NEXTAUTH_URL?.trim()
       },
-      result
+      result,
+      resultError: result.success ? null : result.error
     });
 
   } catch (error) {

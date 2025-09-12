@@ -1,10 +1,10 @@
 import axios from 'axios';
 import crypto from 'crypto';
 
-// Cashfree credentials from environment variables
-const CASHFREE_APP_ID = process.env.CASHFREE_APP_ID;
-const CASHFREE_SECRET_KEY = process.env.CASHFREE_SECRET_KEY;
-const CASHFREE_BASE_URL = process.env.CASHFREE_BASE_URL || 'https://api.cashfree.com/pg';
+// Cashfree credentials from environment variables (trim whitespace)
+const CASHFREE_APP_ID = process.env.CASHFREE_APP_ID?.trim();
+const CASHFREE_SECRET_KEY = process.env.CASHFREE_SECRET_KEY?.trim();
+const CASHFREE_BASE_URL = (process.env.CASHFREE_BASE_URL || 'https://api.cashfree.com/pg').trim();
 
 // Check if Cashfree is properly configured
 const isCashfreeConfigured = () => {
@@ -77,7 +77,7 @@ export async function createCashfreePaymentSession(
   }
 
   const orderId = generateOrderId(bookingId);
-  const returnUrl = `${process.env.NEXTAUTH_URL}/api/payments/cashfree/callback`;
+  const returnUrl = `${process.env.NEXTAUTH_URL?.trim()}/api/payments/cashfree/callback`;
 
   const paymentData = {
     order_id: orderId,
@@ -91,7 +91,7 @@ export async function createCashfreePaymentSession(
     },
     order_meta: {
       return_url: returnUrl,
-      notify_url: `${process.env.NEXTAUTH_URL}/api/payments/cashfree/webhook`,
+      notify_url: `${process.env.NEXTAUTH_URL?.trim()}/api/payments/cashfree/webhook`,
       payment_methods: 'cc,dc,upi,nb,paylater,emi'
     },
     order_note: bookingDetails.description || `ChillConnect consultation booking - ${bookingId}`
