@@ -57,8 +57,8 @@ export async function createPayPalOrder(amount: number, bookingId: string) {
   request.requestBody({
     intent: 'CAPTURE',
     application_context: {
-      return_url: `${process.env.NEXTAUTH_URL || 'https://newchillconnect-bduad36rf-rishovs-projects.vercel.app'}/api/payments/paypal/success`,
-      cancel_url: `${process.env.NEXTAUTH_URL || 'https://newchillconnect-bduad36rf-rishovs-projects.vercel.app'}/api/payments/paypal/cancel`,
+      return_url: `${process.env.NEXTAUTH_URL || process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://newchillconnect.vercel.app'}/api/payments/paypal/success`,
+      cancel_url: `${process.env.NEXTAUTH_URL || process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://newchillconnect.vercel.app'}/api/payments/paypal/cancel`,
       brand_name: 'ChillConnect',
       locale: 'en-IN',
       landing_page: 'BILLING',
