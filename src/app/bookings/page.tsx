@@ -27,7 +27,7 @@ interface Booking {
   scheduledAt: string;
   duration: number;
   amount: number;
-  status: 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED';
+  status: 'PENDING' | 'PAYMENT_PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED';
   meetingLink?: string;
   notes?: string;
 }
@@ -40,6 +40,7 @@ export default function BookingsPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'upcoming' | 'completed' | 'cancelled'>('all');
   const [cancellingBookings, setCancellingBookings] = useState<Set<string>>(new Set());
+  const [paymentLoading, setPaymentLoading] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -134,12 +135,56 @@ export default function BookingsPage() {
     }
   };
 
+  const handleMakePayment = async (bookingId: string) => {
+    setPaymentLoading(prev => new Set([...prev, bookingId]));
+    
+    try {
+      const response = await fetch(`/api/bookings/${bookingId}/status`);
+      const bookingData = await response.json();
+      
+      if (response.ok && bookingData.status === 'PAYMENT_PENDING') {
+        // Redirect to payment page
+        router.push(`/booking/payment-cashfree?booking=${bookingId}&gateway=cashfree`);
+      } else if (response.status === 410) {
+        // Payment deadline exceeded
+        toast({
+          type: 'error',
+          title: 'Payment Deadline Exceeded',
+          message: bookingData.message || 'The payment deadline has passed. Please make a new booking.'
+        });
+        // Refresh the bookings list to remove the expired booking
+        fetchBookings();
+      } else {
+        toast({
+          type: 'error',
+          title: 'Payment Error',
+          message: bookingData.error || 'Unable to process payment. Please try again.'
+        });
+      }
+    } catch (error) {
+      console.error('Error initiating payment:', error);
+      toast({
+        type: 'error',
+        title: 'Network Error',
+        message: 'Unable to initiate payment. Please check your connection and try again.'
+      });
+    } finally {
+      setPaymentLoading(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(bookingId);
+        return newSet;
+      });
+    }
+  };
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'CONFIRMED':
         return <CheckCircle className="w-4 h-4 text-green-600" />;
       case 'PENDING':
         return <AlertCircle className="w-4 h-4 text-yellow-600" />;
+      case 'PAYMENT_PENDING':
+        return <CreditCard className="w-4 h-4 text-orange-600" />;
       case 'CANCELLED':
         return <XCircle className="w-4 h-4 text-red-600" />;
       case 'COMPLETED':
@@ -155,6 +200,8 @@ export default function BookingsPage() {
         return 'bg-green-100 text-green-800';
       case 'PENDING':
         return 'bg-yellow-100 text-yellow-800';
+      case 'PAYMENT_PENDING':
+        return 'bg-orange-100 text-orange-800';
       case 'CANCELLED':
         return 'bg-red-100 text-red-800';
       case 'COMPLETED':
@@ -167,7 +214,7 @@ export default function BookingsPage() {
   const filteredBookings = bookings.filter(booking => {
     if (filter === 'all') return true;
     if (filter === 'upcoming') {
-      return ['PENDING', 'CONFIRMED'].includes(booking.status) && 
+      return ['PENDING', 'PAYMENT_PENDING', 'CONFIRMED'].includes(booking.status) && 
              new Date(booking.scheduledAt) > new Date();
     }
     if (filter === 'completed') return booking.status === 'COMPLETED';
@@ -331,6 +378,26 @@ export default function BookingsPage() {
                         <MessageCircle className="w-4 h-4" />
                         <span>Chat</span>
                       </Link>
+                    )}
+
+                    {booking.status === 'PAYMENT_PENDING' && (
+                      <button 
+                        onClick={() => handleMakePayment(booking.id)}
+                        disabled={paymentLoading.has(booking.id)}
+                        className="flex items-center space-x-2 bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {paymentLoading.has(booking.id) ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            <span>Processing...</span>
+                          </>
+                        ) : (
+                          <>
+                            <CreditCard className="w-4 h-4" />
+                            <span>Make Payment</span>
+                          </>
+                        )}
+                      </button>
                     )}
 
                     {booking.status === 'PENDING' && (

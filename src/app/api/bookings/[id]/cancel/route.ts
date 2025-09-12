@@ -5,10 +5,11 @@ import { authOptions } from '@/lib/auth/config';
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    console.log('Booking cancellation request:', { bookingId: params.id });
+    const { id: bookingId } = await params;
+    console.log('Booking cancellation request:', { bookingId });
     
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
@@ -19,7 +20,7 @@ export async function POST(
     console.log('Session user:', { userId: session.user.id, role: session.user.role });
 
     const booking = await prisma.booking.findUnique({
-      where: { id: params.id },
+      where: { id: bookingId },
       include: { 
         transactions: true,
         seeker: {
@@ -32,7 +33,7 @@ export async function POST(
     });
 
     if (!booking) {
-      console.log('Cancellation failed: Booking not found', params.id);
+      console.log('Cancellation failed: Booking not found', bookingId);
       return NextResponse.json(
         { error: 'Booking not found' },
         { status: 404 }
@@ -97,11 +98,11 @@ export async function POST(
 
     // Update booking status
     await prisma.booking.update({
-      where: { id: params.id },
+      where: { id: bookingId },
       data: { status: 'CANCELLED' }
     });
 
-    console.log('Booking cancelled successfully:', params.id);
+    console.log('Booking cancelled successfully:', bookingId);
 
     return NextResponse.json({
       message: 'Booking cancelled successfully',

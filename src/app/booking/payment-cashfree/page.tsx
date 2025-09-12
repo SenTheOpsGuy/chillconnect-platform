@@ -71,7 +71,7 @@ function PaymentForm() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          providerId: bookingDetails.provider.id, // This might need adjustment based on your data structure
+          providerId: 'provider-id', // This would need to be provided from booking details
           startTime: bookingDetails.startTime,
           duration: Math.ceil((new Date(bookingDetails.endTime).getTime() - new Date(bookingDetails.startTime).getTime()) / 60000)
         })

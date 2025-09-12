@@ -306,6 +306,9 @@ export async function processRefund(orderId: string, amount?: number) {
     }
   }
   
+  if (!amount) {
+    throw new Error('Could not determine refund amount');
+  }
   return await processCashfreeRefund(orderId, amount);
 }
 

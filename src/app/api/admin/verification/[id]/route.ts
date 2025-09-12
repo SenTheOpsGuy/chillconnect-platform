@@ -10,7 +10,7 @@ const verificationSchema = z.object({
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -24,7 +24,7 @@ export async function POST(
 
     const body = await req.json();
     const { action } = verificationSchema.parse(body);
-    const providerId = params.id;
+    const { id: providerId } = await params;
 
     // Check if provider exists and is pending
     const provider = await prisma.provider.findUnique({

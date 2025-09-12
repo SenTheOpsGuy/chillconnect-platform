@@ -7,7 +7,7 @@ import { sendEmail } from '@/lib/email/brevo';
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -15,8 +15,9 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id } = await params;
     const booking = await prisma.booking.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         seeker: { include: { profile: true } },
         provider: { include: { profile: true } },
@@ -74,7 +75,7 @@ export async function POST(
 
     // Update booking status and add meet URL
     const updatedBooking = await prisma.booking.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         status: 'CONFIRMED',
         meetUrl: meetUrl
@@ -83,13 +84,13 @@ export async function POST(
 
     // Create session record if not exists
     const existingSession = await prisma.session.findUnique({
-      where: { bookingId: params.id }
+      where: { bookingId: id }
     });
 
     if (!existingSession) {
       await prisma.session.create({
         data: {
-          bookingId: params.id,
+          bookingId: id,
           chatExpiresAt: new Date(booking.endTime.getTime() + 24 * 60 * 60 * 1000) // 24 hours after session
         }
       });
