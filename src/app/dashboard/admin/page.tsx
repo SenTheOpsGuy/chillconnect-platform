@@ -289,7 +289,10 @@ export default function AdminDashboard() {
                 Review and address these issues to maintain optimal platform performance.
               </p>
               <div className="mt-2">
-                <button className="text-sm bg-yellow-100 hover:bg-yellow-200 text-yellow-800 px-3 py-1 rounded">
+                <button 
+                  onClick={() => router.push('/admin/issues')}
+                  className="text-sm bg-yellow-100 hover:bg-yellow-200 text-yellow-800 px-3 py-1 rounded transition-colors"
+                >
                   View Issues
                 </button>
               </div>
