@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
       console.warn('Very low booking amount detected:', amount);
     }
     
-    // Create booking with PENDING status initially
+    // Create booking with PAYMENT_PENDING status since payment is required
     const booking = await prisma.booking.create({
       data: {
         seekerId: session.user.id,
@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
         startTime: new Date(startTime),
         endTime: new Date(new Date(startTime).getTime() + duration * 60000),
         amount,
-        status: 'PENDING'
+        status: 'PAYMENT_PENDING'
       }
     });
 
@@ -115,15 +115,7 @@ export async function POST(req: NextRequest) {
     } catch (cashfreeError) {
       console.error('Cashfree payment session failed:', cashfreeError);
       
-      // If Cashfree fails, offer alternative booking flow
-      console.log('Cashfree failed, offering alternative booking flow');
-      
-      // Update booking status to payment_pending instead of deleting
-      await prisma.booking.update({
-        where: { id: booking.id },
-        data: { status: 'PAYMENT_PENDING' }
-      });
-      
+      // If Cashfree fails, booking is already in PAYMENT_PENDING status
       // Return fallback response with payment deadline
       const bookingTime = new Date(startTime);
       const paymentDeadline = new Date(bookingTime.getTime() - 60 * 60 * 1000); // 1 hour before booking
@@ -135,7 +127,8 @@ export async function POST(req: NextRequest) {
         message: 'Booking slot reserved! Complete payment to confirm your consultation.',
         paymentDeadline: paymentDeadline.toISOString(),
         warning: 'Payment must be completed 1 hour before your scheduled consultation or the booking will be automatically cancelled.',
-        amount: amount
+        amount: amount,
+        error: 'Payment session creation failed. Please try the "Make Payment" button.'
       });
     }
 
