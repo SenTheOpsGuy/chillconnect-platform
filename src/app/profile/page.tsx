@@ -60,7 +60,8 @@ export default function ProfilePage() {
     lastName: '',
     phone: '',
     timezone: '',
-    bio: ''
+    bio: '',
+    hourlyRate: ''
   });
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
@@ -89,7 +90,8 @@ export default function ProfilePage() {
           lastName: data.profile.lastName || '',
           phone: data.profile.phone || '',
           timezone: data.profile.timezone || 'Asia/Kolkata',
-          bio: data.profile.bio || ''
+          bio: data.profile.bio || '',
+          hourlyRate: data.providerProfile?.hourlyRate?.toString() || ''
         });
       } else {
         toast({
@@ -103,7 +105,8 @@ export default function ProfilePage() {
           lastName: '',
           phone: '',
           timezone: 'Asia/Kolkata',
-          bio: ''
+          bio: '',
+          hourlyRate: ''
         });
       }
       
@@ -122,12 +125,19 @@ export default function ProfilePage() {
     e.preventDefault();
     
     try {
+      const requestBody: any = { ...formData };
+      
+      // Convert hourlyRate to number if it's a provider and the field is filled
+      if (providerProfile && formData.hourlyRate) {
+        requestBody.hourlyRate = parseFloat(formData.hourlyRate);
+      }
+      
       const response = await fetch('/api/profile', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(requestBody),
       });
       
       const data = await response.json();
@@ -142,6 +152,14 @@ export default function ProfilePage() {
           timezone: formData.timezone,
           bio: formData.bio
         } : null);
+
+        // Update provider profile if applicable
+        if (providerProfile && formData.hourlyRate) {
+          setProviderProfile(prev => prev ? {
+            ...prev,
+            hourlyRate: parseFloat(formData.hourlyRate)
+          } : null);
+        }
         
         setEditing(false);
         toast({
@@ -374,7 +392,8 @@ export default function ProfilePage() {
                             lastName: profile.lastName,
                             phone: profile.phone || '',
                             timezone: profile.timezone,
-                            bio: profile.bio || ''
+                            bio: profile.bio || '',
+                            hourlyRate: providerProfile?.hourlyRate?.toString() || ''
                           });
                         }}
                         className="flex items-center space-x-2 text-gray-900 hover:text-gray-900"
@@ -462,6 +481,22 @@ export default function ProfilePage() {
                         placeholder="Tell us about yourself..."
                       />
                     </div>
+
+                    {providerProfile && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-900 mb-2">
+                          Hourly Rate (₹)
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={formData.hourlyRate}
+                          onChange={(e) => setFormData({...formData, hourlyRate: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white"
+                          placeholder="1500"
+                        />
+                      </div>
+                    )}
                   </form>
                 ) : (
                   <div className="space-y-6">
