@@ -96,19 +96,28 @@ export async function POST(req: NextRequest) {
     } catch (paypalError) {
       console.error('PayPal payment intent failed:', paypalError);
       
-      // If PayPal fails, we should still return an error to the user
-      // Delete the booking since payment setup failed
-      await prisma.booking.delete({
-        where: { id: booking.id }
+      // If PayPal fails, offer alternative booking flow
+      console.log('PayPal failed, offering alternative booking flow');
+      
+      // Update booking status to payment_pending instead of deleting
+      await prisma.booking.update({
+        where: { id: booking.id },
+        data: { status: 'PAYMENT_PENDING' }
       });
       
-      return NextResponse.json(
-        { 
-          error: 'Payment setup failed', 
-          details: paypalError instanceof Error ? paypalError.message : 'PayPal integration error' 
-        },
-        { status: 500 }
-      );
+      // Return fallback response with payment deadline
+      const bookingTime = new Date(startTime);
+      const paymentDeadline = new Date(bookingTime.getTime() - 60 * 60 * 1000); // 1 hour before booking
+      
+      return NextResponse.json({
+        bookingId: booking.id,
+        fallback: true,
+        status: 'payment_pending',
+        message: 'Booking slot reserved! Complete payment to confirm your consultation.',
+        paymentDeadline: paymentDeadline.toISOString(),
+        warning: 'Payment must be completed 1 hour before your scheduled consultation or the booking will be automatically cancelled.',
+        amount: amount
+      });
     }
 
     // Create transaction record

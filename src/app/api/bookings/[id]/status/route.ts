@@ -34,6 +34,60 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    // If booking is payment pending, check if payment deadline has passed
+    if (booking.status === 'PAYMENT_PENDING') {
+      const currentTime = new Date();
+      const bookingTime = new Date(booking.startTime);
+      const paymentDeadline = new Date(bookingTime.getTime() - 60 * 60 * 1000); // 1 hour before
+
+      if (currentTime >= paymentDeadline) {
+        console.log(`Payment deadline passed for booking ${booking.id}. Removing booking.`);
+        
+        // Remove the booking and any associated transactions
+        await prisma.transaction.deleteMany({
+          where: { bookingId: booking.id }
+        });
+        
+        await prisma.booking.delete({
+          where: { id: booking.id }
+        });
+        
+        return NextResponse.json({
+          error: 'deadline_exceeded',
+          message: 'The payment deadline has passed. Please make a new booking.',
+          expired: true
+        }, { status: 410 }); // 410 Gone status code
+      }
+      
+      // Add payment deadline info to response for pending bookings
+      const timeLeft = paymentDeadline.getTime() - currentTime.getTime();
+      const hoursLeft = Math.floor(timeLeft / (1000 * 60 * 60));
+      const minutesLeft = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+      
+      return NextResponse.json({
+        id: booking.id,
+        status: booking.status,
+        startTime: booking.startTime,
+        endTime: booking.endTime,
+        amount: booking.amount,
+        seeker: {
+          name: `${booking.seeker.profile?.firstName} ${booking.seeker.profile?.lastName}`,
+          email: booking.seeker.email
+        },
+        provider: {
+          name: `${booking.provider.profile?.firstName} ${booking.provider.profile?.lastName}`,
+          email: booking.provider.email
+        },
+        paymentStatus: booking.transactions?.[0]?.status || 'pending',
+        paymentDeadline: paymentDeadline.toISOString(),
+        timeRemaining: {
+          hours: hoursLeft,
+          minutes: minutesLeft,
+          total: timeLeft
+        }
+      });
+    }
+
     return NextResponse.json({
       id: booking.id,
       status: booking.status,

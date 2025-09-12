@@ -86,6 +86,35 @@ export async function GET(req: NextRequest) {
       console.error('Transaction not found for PayPal order:', token);
       return NextResponse.redirect(new URL('/booking/payment?error=transaction_not_found', req.url));
     }
+
+    // Check if booking still exists and payment deadline hasn't passed
+    if (!transaction.booking) {
+      console.error('Booking not found for transaction:', transaction.id);
+      return NextResponse.redirect(new URL('/booking/payment?error=booking_not_found', req.url));
+    }
+
+    // Check payment deadline (1 hour before booking time)
+    const currentTime = new Date();
+    const bookingTime = new Date(transaction.booking.startTime);
+    const paymentDeadline = new Date(bookingTime.getTime() - 60 * 60 * 1000); // 1 hour before
+
+    if (currentTime >= paymentDeadline) {
+      console.log(`Payment deadline passed for booking ${transaction.booking.id}. Removing booking.`);
+      
+      // Remove the booking and transaction (not cancel)
+      await prisma.transaction.delete({
+        where: { id: transaction.id }
+      });
+      
+      await prisma.booking.delete({
+        where: { id: transaction.booking.id }
+      });
+      
+      // Redirect with deadline exceeded message
+      return NextResponse.redirect(
+        new URL('/booking/payment?error=deadline_exceeded&message=The payment deadline has passed. Please make a new booking.', req.url)
+      );
+    }
     
     // Update transaction with capture details
     await prisma.transaction.update({
