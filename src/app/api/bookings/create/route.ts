@@ -49,6 +49,16 @@ export async function POST(req: NextRequest) {
     
     // Calculate amount
     const amount = (provider.hourlyRate * duration) / 60;
+    console.log('Booking calculation:', { 
+      hourlyRate: provider.hourlyRate, 
+      duration, 
+      calculatedAmount: amount 
+    });
+    
+    // Validate minimum amount
+    if (amount < 1) {
+      console.warn('Very low booking amount detected:', amount);
+    }
     
     // Create booking with PENDING status initially
     const booking = await prisma.booking.create({
@@ -70,16 +80,36 @@ export async function POST(req: NextRequest) {
 
     // Process payment with PayPal
     console.log('Creating PayPal payment intent:', { amount, seekerEmail: seekerUser?.email });
-    const paymentIntent = await createPaymentIntent(
-      amount,
-      seekerUser?.email || '',
-      { 
-        bookingId: booking.id,
-        providerId: provider.userId,
-        seekerId: session.user.id
-      }
-    );
-    console.log('PayPal payment intent result:', { success: !!paymentIntent.id, orderId: paymentIntent.id });
+    let paymentIntent;
+    
+    try {
+      paymentIntent = await createPaymentIntent(
+        amount,
+        seekerUser?.email || '',
+        { 
+          bookingId: booking.id,
+          providerId: provider.userId,
+          seekerId: session.user.id
+        }
+      );
+      console.log('PayPal payment intent result:', { success: !!paymentIntent.id, orderId: paymentIntent.id });
+    } catch (paypalError) {
+      console.error('PayPal payment intent failed:', paypalError);
+      
+      // If PayPal fails, we should still return an error to the user
+      // Delete the booking since payment setup failed
+      await prisma.booking.delete({
+        where: { id: booking.id }
+      });
+      
+      return NextResponse.json(
+        { 
+          error: 'Payment setup failed', 
+          details: paypalError instanceof Error ? paypalError.message : 'PayPal integration error' 
+        },
+        { status: 500 }
+      );
+    }
 
     // Create transaction record
     await prisma.transaction.create({

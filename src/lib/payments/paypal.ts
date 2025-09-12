@@ -54,7 +54,7 @@ export async function createPayPalOrder(amount: number, bookingId: string) {
         reference_id: bookingId,
         amount: {
           currency_code: 'USD', // PayPal live account supports USD
-          value: (amount / 83).toFixed(2) // Convert INR to USD (approx rate)
+          value: Math.max((amount / 83), 1.0).toFixed(2) // Convert INR to USD with minimum $1.00
         },
         description: `ChillConnect Consultation - ₹${amount.toLocaleString()} INR`
       }
