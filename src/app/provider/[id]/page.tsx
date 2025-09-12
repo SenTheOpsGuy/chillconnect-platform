@@ -126,12 +126,12 @@ export default function ProviderProfilePage() {
 
       if (response.ok) {
         // Handle different response types
-        if (data.paypalOrderId && data.approvalUrl) {
-          // Redirect to PayPal approval URL for payment
-          window.location.href = data.approvalUrl;
+        if (data.gateway === 'cashfree' && data.paymentUrl) {
+          // Redirect to Cashfree payment URL
+          window.location.href = data.paymentUrl;
         } else if (data.status === 'payment_required' && data.bookingId) {
           // Fallback: redirect to payment page
-          router.push(`/booking/payment?booking=${data.bookingId}&paypal_order=${data.paypalOrderId}`);
+          router.push(`/booking/payment-cashfree?booking=${data.bookingId}&order_id=${data.orderId}&gateway=cashfree`);
         } else if (data.fallback || data.status === 'payment_pending') {
           // Payment integration unavailable - show success with message
           toast({

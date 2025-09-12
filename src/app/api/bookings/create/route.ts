@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { prisma } from '@/lib/db';
-import { createPaymentIntent } from '@/lib/payments/paypal';
+import { createPaymentIntent } from '@/lib/payments/cashfree';
 import { authOptions } from '@/lib/auth/config';
 import { z } from 'zod';
 
@@ -78,8 +78,8 @@ export async function POST(req: NextRequest) {
       include: { profile: true }
     });
 
-    // Process payment with PayPal
-    console.log('Creating PayPal payment intent:', { amount, seekerEmail: seekerUser?.email });
+    // Process payment with Cashfree
+    console.log('Creating Cashfree payment session:', { amount, seekerEmail: seekerUser?.email });
     let paymentIntent;
     
     try {
@@ -89,15 +89,17 @@ export async function POST(req: NextRequest) {
         { 
           bookingId: booking.id,
           providerId: provider.userId,
-          seekerId: session.user.id
+          seekerId: session.user.id,
+          customerName: `${seekerUser?.profile?.firstName} ${seekerUser?.profile?.lastName}` || 'Customer',
+          customerPhone: seekerUser?.phone || '9999999999'
         }
       );
-      console.log('PayPal payment intent result:', { success: !!paymentIntent.id, orderId: paymentIntent.id });
-    } catch (paypalError) {
-      console.error('PayPal payment intent failed:', paypalError);
+      console.log('Cashfree payment session result:', { success: !!paymentIntent.id, orderId: paymentIntent.id });
+    } catch (cashfreeError) {
+      console.error('Cashfree payment session failed:', cashfreeError);
       
-      // If PayPal fails, offer alternative booking flow
-      console.log('PayPal failed, offering alternative booking flow');
+      // If Cashfree fails, offer alternative booking flow
+      console.log('Cashfree failed, offering alternative booking flow');
       
       // Update booking status to payment_pending instead of deleting
       await prisma.booking.update({
@@ -128,17 +130,18 @@ export async function POST(req: NextRequest) {
         amount: amount,
         type: 'BOOKING_PAYMENT',
         status: 'pending',
-        paypalOrderId: paymentIntent.id
+        paypalOrderId: paymentIntent.id  // Reusing field name for Cashfree order ID
       }
     });
     
-    // Return PayPal order data for client-side confirmation
+    // Return Cashfree payment data for client-side redirection
     return NextResponse.json({
       bookingId: booking.id,
-      paypalOrderId: paymentIntent.id,
-      approvalUrl: paymentIntent.approval_url,
+      orderId: paymentIntent.id,
+      paymentUrl: paymentIntent.payment_url,
       amount,
-      status: 'payment_required'
+      status: 'payment_required',
+      gateway: 'cashfree'
     });
   } catch (error) {
     console.error('Booking creation error:', error);
