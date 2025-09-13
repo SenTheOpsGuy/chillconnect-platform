@@ -3,7 +3,7 @@
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Search, Filter, MoreVertical, User, Shield, Ban, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Search, Filter, MoreVertical, User, Shield, Ban, CheckCircle, X, AlertTriangle, Clock, DollarSign, Database, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 
 interface UserData {
@@ -24,6 +24,22 @@ interface UserData {
   };
 }
 
+interface DeletionStep {
+  id: string;
+  title: string;
+  description: string;
+  icon: React.ComponentType<any>;
+  status: 'pending' | 'in-progress' | 'completed' | 'error';
+  error?: string;
+}
+
+interface DeletionProgress {
+  isVisible: boolean;
+  userId: string;
+  userName: string;
+  steps: DeletionStep[];
+}
+
 export default function UsersPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -39,6 +55,12 @@ export default function UsersPage() {
     limit: 10,
     total: 0,
     pages: 0
+  });
+  const [deletionProgress, setDeletionProgress] = useState<DeletionProgress>({
+    isVisible: false,
+    userId: '',
+    userName: '',
+    steps: []
   });
 
   useEffect(() => {
@@ -184,26 +206,9 @@ export default function UsersPage() {
         break;
       case 'delete':
         console.log('Delete action triggered');
-        if (confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
-          try {
-            const response = await fetch(`/api/users/${userId}`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ action: 'delete' })
-            });
-            
-            if (response.ok) {
-              setUsers(prev => prev.filter(user => user.id !== userId));
-              console.log('User deleted successfully');
-            } else {
-              const data = await response.json();
-              console.error(`Failed to delete user: ${data.error}`);
-              alert(`Failed to delete user: ${data.error}`);
-            }
-          } catch (err) {
-            console.error('Failed to delete user');
-            alert('Failed to delete user. Please try again.');
-          }
+        const userToDelete = users.find(u => u.id === userId);
+        if (userToDelete && confirm(`Are you sure you want to delete ${userToDelete.firstName} ${userToDelete.lastName}? This action cannot be undone and will cancel all their bookings.`)) {
+          performUserDeletion(userId, `${userToDelete.firstName} ${userToDelete.lastName}`);
         }
         break;
       default:
@@ -214,6 +219,104 @@ export default function UsersPage() {
 
   const toggleDropdown = (userId: string) => {
     setOpenDropdown(openDropdown === userId ? null : userId);
+  };
+
+  const initializeDeletionSteps = (): DeletionStep[] => [
+    {
+      id: 'bookings',
+      title: 'Processing Bookings',
+      description: 'Cancelling active bookings and processing refunds',
+      icon: Clock,
+      status: 'pending'
+    },
+    {
+      id: 'refunds',
+      title: 'Processing Refunds',
+      description: 'Issuing refunds to affected users',
+      icon: DollarSign,
+      status: 'pending'
+    },
+    {
+      id: 'cleanup',
+      title: 'Data Cleanup',
+      description: 'Removing user data and relationships',
+      icon: Database,
+      status: 'pending'
+    },
+    {
+      id: 'account',
+      title: 'Account Deletion',
+      description: 'Permanently removing user account',
+      icon: Trash2,
+      status: 'pending'
+    }
+  ];
+
+  const updateDeletionStep = (stepId: string, status: DeletionStep['status'], error?: string) => {
+    setDeletionProgress(prev => ({
+      ...prev,
+      steps: prev.steps.map(step => 
+        step.id === stepId 
+          ? { ...step, status, error }
+          : step
+      )
+    }));
+  };
+
+  const performUserDeletion = async (userId: string, userName: string) => {
+    setDeletionProgress({
+      isVisible: true,
+      userId,
+      userName,
+      steps: initializeDeletionSteps()
+    });
+
+    try {
+      // Step 1: Start deletion process
+      updateDeletionStep('bookings', 'in-progress');
+      
+      // Make the API call with progress simulation
+      const response = await fetch(`/api/users/${userId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete' })
+      });
+
+      if (response.ok) {
+        // Simulate step progression for visual feedback
+        updateDeletionStep('bookings', 'completed');
+        
+        setTimeout(() => updateDeletionStep('refunds', 'in-progress'), 500);
+        setTimeout(() => {
+          updateDeletionStep('refunds', 'completed');
+          updateDeletionStep('cleanup', 'in-progress');
+        }, 1500);
+        
+        setTimeout(() => {
+          updateDeletionStep('cleanup', 'completed');
+          updateDeletionStep('account', 'in-progress');
+        }, 2500);
+        
+        setTimeout(() => {
+          updateDeletionStep('account', 'completed');
+          
+          // Remove user from list and close modal after a brief delay
+          setTimeout(() => {
+            setUsers(prev => prev.filter(user => user.id !== userId));
+            setDeletionProgress(prev => ({ ...prev, isVisible: false }));
+          }, 1000);
+        }, 3500);
+      } else {
+        const data = await response.json();
+        updateDeletionStep('bookings', 'error', data.error || 'Failed to start deletion process');
+      }
+    } catch (err) {
+      updateDeletionStep('bookings', 'error', 'Network error occurred during deletion');
+    }
+  };
+
+  const closeDeletionModal = () => {
+    setDeletionProgress(prev => ({ ...prev, isVisible: false }));
   };
 
   if (status === 'loading' || loading) {
@@ -551,6 +654,129 @@ export default function UsersPage() {
           </div>
         )}
       </div>
+
+      {/* Deletion Progress Modal */}
+      {deletionProgress.isVisible && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+          <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Deleting User Account</h3>
+                <p className="text-sm text-gray-600">{deletionProgress.userName}</p>
+              </div>
+              {deletionProgress.steps.every(step => step.status === 'completed') && (
+                <button
+                  onClick={closeDeletionModal}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
+            </div>
+
+            {/* Progress Steps */}
+            <div className="p-6">
+              <div className="space-y-4">
+                {deletionProgress.steps.map((step, index) => {
+                  const Icon = step.icon;
+                  
+                  return (
+                    <div key={step.id} className="flex items-start space-x-3">
+                      {/* Step Icon */}
+                      <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                        step.status === 'completed' 
+                          ? 'bg-green-100 text-green-600' 
+                          : step.status === 'in-progress'
+                          ? 'bg-blue-100 text-blue-600'
+                          : step.status === 'error'
+                          ? 'bg-red-100 text-red-600'
+                          : 'bg-gray-100 text-gray-400'
+                      }`}>
+                        {step.status === 'completed' ? (
+                          <CheckCircle className="w-5 h-5" />
+                        ) : step.status === 'error' ? (
+                          <AlertTriangle className="w-5 h-5" />
+                        ) : step.status === 'in-progress' ? (
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                        ) : (
+                          <Icon className="w-4 h-4" />
+                        )}
+                      </div>
+
+                      {/* Step Content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-2">
+                          <h4 className={`text-sm font-medium ${
+                            step.status === 'completed' ? 'text-green-900' :
+                            step.status === 'in-progress' ? 'text-blue-900' :
+                            step.status === 'error' ? 'text-red-900' :
+                            'text-gray-500'
+                          }`}>
+                            {step.title}
+                          </h4>
+                          {step.status === 'in-progress' && (
+                            <div className="flex space-x-1">
+                              <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
+                              <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                              <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                            </div>
+                          )}
+                        </div>
+                        <p className={`text-xs mt-1 ${
+                          step.status === 'error' ? 'text-red-600' : 'text-gray-600'
+                        }`}>
+                          {step.status === 'error' ? step.error : step.description}
+                        </p>
+                      </div>
+
+                      {/* Connection Line */}
+                      {index < deletionProgress.steps.length - 1 && (
+                        <div className="absolute left-9 mt-8 w-0.5 h-6 bg-gray-200"></div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Final Status */}
+              {deletionProgress.steps.every(step => step.status === 'completed') && (
+                <div className="mt-6 p-4 bg-green-50 rounded-lg border border-green-200">
+                  <div className="flex items-center space-x-2">
+                    <CheckCircle className="w-5 h-5 text-green-600" />
+                    <span className="text-sm font-medium text-green-900">
+                      User account successfully deleted
+                    </span>
+                  </div>
+                  <p className="text-xs text-green-700 mt-1">
+                    All bookings have been cancelled and refunds processed.
+                  </p>
+                </div>
+              )}
+
+              {deletionProgress.steps.some(step => step.status === 'error') && (
+                <div className="mt-6 p-4 bg-red-50 rounded-lg border border-red-200">
+                  <div className="flex items-center space-x-2">
+                    <AlertTriangle className="w-5 h-5 text-red-600" />
+                    <span className="text-sm font-medium text-red-900">
+                      Deletion failed
+                    </span>
+                  </div>
+                  <p className="text-xs text-red-700 mt-1">
+                    Please try again or contact support if the issue persists.
+                  </p>
+                  <button
+                    onClick={closeDeletionModal}
+                    className="mt-3 text-xs bg-red-100 hover:bg-red-200 text-red-800 px-3 py-1 rounded"
+                  >
+                    Close
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
