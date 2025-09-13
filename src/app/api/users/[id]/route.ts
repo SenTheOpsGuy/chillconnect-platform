@@ -157,36 +157,34 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         });
 
         try {
-          await prisma.$transaction(async (tx) => {
-            console.log('Starting comprehensive user deletion transaction');
-            
-            // Step 1: Handle all bookings (cancel and notify)
-            const allBookings = await tx.booking.findMany({
-              where: {
-                OR: [
-                  { seekerId: userId },
-                  { providerId: userId }
-                ]
-              },
-              include: {
-                seeker: { include: { profile: true } },
-                provider: { include: { profile: true } },
-                transactions: true
-              }
-            });
+          // Step 1: Handle bookings and refunds (separate transaction)
+          console.log('Step 1: Processing bookings and refunds');
+          const allBookings = await prisma.booking.findMany({
+            where: {
+              OR: [
+                { seekerId: userId },
+                { providerId: userId }
+              ]
+            },
+            include: {
+              seeker: { include: { profile: true } },
+              provider: { include: { profile: true } },
+              transactions: true
+            }
+          });
 
-            console.log(`Found ${allBookings.length} bookings to handle`);
+          console.log(`Found ${allBookings.length} bookings to handle`);
 
-            for (const booking of allBookings) {
-              if (['PENDING', 'CONFIRMED', 'PAYMENT_PENDING'].includes(booking.status)) {
+          // Process refunds and cancellations in smaller batches
+          for (const booking of allBookings) {
+            if (['PENDING', 'CONFIRMED', 'PAYMENT_PENDING'].includes(booking.status)) {
+              await prisma.$transaction(async (tx) => {
                 console.log(`Cancelling booking ${booking.id} due to account deletion`);
                 
                 // Cancel the booking
                 await tx.booking.update({
                   where: { id: booking.id },
-                  data: { 
-                    status: 'CANCELLED'
-                  }
+                  data: { status: 'CANCELLED' }
                 });
 
                 // Handle refunds for paid bookings
@@ -218,108 +216,90 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
                       await tx.wallet.update({
                         where: { id: seekerWallet.id },
                         data: {
-                          balance: {
-                            increment: transaction.amount
-                          }
+                          balance: { increment: transaction.amount }
                         }
                       });
                     }
                   }
                 }
+              });
 
-                // Log cancellation notification (in production, send email/SMS)
-                const otherPartyId = booking.seekerId === userId ? booking.providerId : booking.seekerId;
-                const otherParty = booking.seekerId === userId ? booking.provider : booking.seeker;
-                const deletedUser = userToDelete;
-                
-                console.log(`Would send cancellation notification to user ${otherPartyId}:`, {
-                  reason: 'Account deletion',
-                  deletedUserName: `${deletedUser.profile?.firstName} ${deletedUser.profile?.lastName}`,
-                  bookingDate: booking.startTime,
-                  refundAmount: paidTransactions.reduce((sum, t) => sum + t.amount, 0)
-                });
-              }
+              // Log cancellation notification
+              const otherPartyId = booking.seekerId === userId ? booking.providerId : booking.seekerId;
+              console.log(`Would send cancellation notification to user ${otherPartyId}:`, {
+                reason: 'Account deletion',
+                deletedUserName: `${userToDelete.profile?.firstName} ${userToDelete.profile?.lastName}`,
+                bookingDate: booking.startTime,
+                refundAmount: booking.transactions
+                  .filter(t => t.type === 'BOOKING_PAYMENT' && t.status === 'completed')
+                  .reduce((sum, t) => sum + t.amount, 0)
+              });
             }
+          }
 
-            // Step 2: Delete related data in correct order
-            
-            // Delete dispute communications
-            await tx.disputeCommunication.deleteMany({
-              where: {
-                OR: [
-                  { fromUserId: userId },
-                  { toUserId: userId }
-                ]
-              }
+          // Step 2: Delete related data in manageable chunks
+          console.log('Step 2: Deleting related data');
+          
+          // Delete dispute-related data
+          await prisma.disputeCommunication.deleteMany({
+            where: {
+              OR: [{ fromUserId: userId }, { toUserId: userId }]
+            }
+          });
+
+          await prisma.disputeResolutionRecord.deleteMany({
+            where: { resolvedBy: userId }
+          });
+
+          await prisma.dispute.deleteMany({
+            where: {
+              OR: [{ initiatedBy: userId }, { assignedTo: userId }]
+            }
+          });
+
+          // Delete feedback
+          await prisma.feedback.deleteMany({
+            where: {
+              OR: [{ giverId: userId }, { receiverId: userId }]
+            }
+          });
+
+          // Delete sessions for user bookings
+          const userBookingIds = allBookings.map(b => b.id);
+          if (userBookingIds.length > 0) {
+            await prisma.session.deleteMany({
+              where: { bookingId: { in: userBookingIds } }
             });
+          }
 
-            // Delete dispute resolution records
-            await tx.disputeResolutionRecord.deleteMany({
-              where: { resolvedBy: userId }
-            });
+          // Delete messages
+          await prisma.message.deleteMany({
+            where: {
+              OR: [{ senderId: userId }, { receiverId: userId }]
+            }
+          });
 
-            // Delete disputes
-            await tx.dispute.deleteMany({
-              where: {
-                OR: [
-                  { initiatedBy: userId },
-                  { assignedTo: userId }
-                ]
-              }
-            });
+          // Delete transactions
+          await prisma.transaction.deleteMany({
+            where: { userId }
+          });
 
-            // Delete feedback
-            await tx.feedback.deleteMany({
-              where: {
-                OR: [
-                  { giverId: userId },
-                  { receiverId: userId }
-                ]
-              }
-            });
+          // Delete bookings
+          await prisma.booking.deleteMany({
+            where: {
+              OR: [{ seekerId: userId }, { providerId: userId }]
+            }
+          });
 
-            // Delete sessions (cascade will handle this, but being explicit)
-            const userBookingIds = allBookings.map(b => b.id);
-            await tx.session.deleteMany({
-              where: {
-                bookingId: { in: userBookingIds }
-              }
-            });
-
-            // Delete messages
-            await tx.message.deleteMany({
-              where: {
-                OR: [
-                  { senderId: userId },
-                  { receiverId: userId }
-                ]
-              }
-            });
-
-            // Delete transactions
-            await tx.transaction.deleteMany({
-              where: { userId }
-            });
-
-            // Delete all bookings
-            await tx.booking.deleteMany({
-              where: {
-                OR: [
-                  { seekerId: userId },
-                  { providerId: userId }
-                ]
-              }
-            });
-
+          // Step 3: Delete user profiles and account (final transaction)
+          console.log('Step 3: Deleting user profiles and account');
+          await prisma.$transaction(async (tx) => {
             // Delete availability records (if provider)
             if (userToDelete.providerProfile) {
               await tx.availability.deleteMany({
                 where: { providerId: userToDelete.providerProfile.id }
               });
-            }
-
-            // Delete provider profile
-            if (userToDelete.providerProfile) {
+              
               console.log('Deleting provider profile');
               await tx.provider.delete({
                 where: { id: userToDelete.providerProfile.id }
