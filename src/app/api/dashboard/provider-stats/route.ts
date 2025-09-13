@@ -30,10 +30,36 @@ export async function GET(req: NextRequest) {
     });
 
     if (!provider) {
-      return NextResponse.json(
-        { error: 'Provider profile not found' },
-        { status: 404 }
-      );
+      // Create a default provider profile if it doesn't exist
+      const newProvider = await prisma.provider.create({
+        data: {
+          userId,
+          expertise: [],
+          yearsExperience: 0,
+          hourlyRate: 0,
+          bio: '',
+          verificationStatus: 'PENDING'
+        },
+        include: { user: { include: { profile: true } } }
+      });
+      
+      // Return basic stats for new provider
+      return NextResponse.json({
+        totalBookings: 0,
+        completedSessions: 0,
+        upcomingBookings: 0,
+        totalEarnings: 0,
+        averageRating: 0,
+        verificationStatus: 'PENDING',
+        todaysSessions: 0,
+        todaysEarnings: 0,
+        hourlyRate: 0,
+        yearsExperience: 0,
+        expertise: [],
+        recentBookings: [],
+        monthlyEarnings: [],
+        todaysBookings: []
+      });
     }
 
     // Get all bookings for this provider

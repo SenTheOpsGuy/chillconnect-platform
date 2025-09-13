@@ -32,7 +32,8 @@ export async function GET() {
       lastName: user.profile?.lastName || '',
       timezone: user.profile?.timezone || 'Asia/Kolkata',
       avatar: user.profile?.avatar || null,
-      bio: '', // Can be added to profile table if needed
+      bio: user.profile?.bio || '',
+      createdAt: user.createdAt.toISOString(),
       emailVerified: user.emailVerified,
       phoneVerified: user.phoneVerified,
       role: user.role
@@ -77,15 +78,17 @@ export async function PUT(request: NextRequest) {
     await prisma.profile.upsert({
       where: { userId: session.user.id },
       update: {
-        firstName,
-        lastName,
-        timezone
+        ...(firstName !== undefined && { firstName }),
+        ...(lastName !== undefined && { lastName }),
+        ...(timezone !== undefined && { timezone }),
+        ...(bio !== undefined && { bio })
       },
       create: {
         userId: session.user.id,
-        firstName,
-        lastName,
-        timezone
+        firstName: firstName || '',
+        lastName: lastName || '',
+        timezone: timezone || 'Asia/Kolkata',
+        bio: bio || ''
       }
     });
 
@@ -98,22 +101,45 @@ export async function PUT(request: NextRequest) {
     }
 
     // Update provider profile if user is a provider
-    if (session.user.role === 'PROVIDER' && (expertise || yearsExperience || hourlyRate || bio)) {
+    if (session.user.role === 'PROVIDER') {
+      const updateData: any = {};
+      const createData: any = {
+        userId: session.user.id,
+        expertise: [],
+        yearsExperience: 0,
+        hourlyRate: 0,
+        bio: '',
+        verificationStatus: 'PENDING'
+      };
+
+      // Handle expertise array
+      if (expertise !== undefined) {
+        updateData.expertise = expertise;
+        createData.expertise = expertise;
+      }
+
+      // Handle years experience
+      if (yearsExperience !== undefined) {
+        updateData.yearsExperience = yearsExperience;
+        createData.yearsExperience = yearsExperience;
+      }
+
+      // Handle hourly rate
+      if (hourlyRate !== undefined) {
+        updateData.hourlyRate = hourlyRate;
+        createData.hourlyRate = hourlyRate;
+      }
+
+      // Handle bio
+      if (bio !== undefined) {
+        updateData.bio = bio;
+        createData.bio = bio;
+      }
+
       await prisma.provider.upsert({
         where: { userId: session.user.id },
-        update: {
-          ...(expertise && { expertise }),
-          ...(yearsExperience && { yearsExperience }),
-          ...(hourlyRate && { hourlyRate }),
-          ...(bio && { bio })
-        },
-        create: {
-          userId: session.user.id,
-          expertise: expertise || [],
-          yearsExperience: yearsExperience || 0,
-          hourlyRate: hourlyRate || 0,
-          bio: bio || ''
-        }
+        update: updateData,
+        create: createData
       });
     }
 
