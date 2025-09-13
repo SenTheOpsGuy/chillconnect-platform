@@ -3,13 +3,14 @@
 import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Eye, EyeOff, Mail, Lock, User, Users } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, Users, Phone } from 'lucide-react';
 
 function RegisterPageContent() {
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
     email: '',
+    phone: '',
     password: '',
     confirmPassword: '',
     role: 'SEEKER' as 'SEEKER' | 'PROVIDER'
@@ -55,12 +56,19 @@ function RegisterPageContent() {
       return;
     }
 
+    if (!formData.phone.match(/^\+[1-9]\d{1,14}$/)) {
+      setError('Phone number must be in international format (e.g., +1234567890)');
+      setLoading(false);
+      return;
+    }
+
     try {
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: formData.email,
+          phone: formData.phone,
           password: formData.password,
           firstName: formData.firstName,
           lastName: formData.lastName,
@@ -71,8 +79,8 @@ function RegisterPageContent() {
       const data = await response.json();
 
       if (response.ok) {
-        // Redirect to email verification
-        router.push(`/verify-email?email=${encodeURIComponent(formData.email)}`);
+        // Redirect to verification page with both email and phone
+        router.push(`/verify-registration?email=${encodeURIComponent(formData.email)}&phone=${encodeURIComponent(formData.phone)}`);
       } else {
         setError(data.error || 'Registration failed');
       }
@@ -186,6 +194,25 @@ function RegisterPageContent() {
               />
               <Mail className="absolute left-3 top-3 text-gray-900" size={20} />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-900 mb-2">
+              Phone Number
+            </label>
+            <div className="relative">
+              <input
+                type="tel"
+                name="phone"
+                required
+                value={formData.phone}
+                onChange={handleChange}
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white placeholder-slate-900"
+                placeholder="+1234567890"
+              />
+              <Phone className="absolute left-3 top-3 text-gray-900" size={20} />
+            </div>
+            <p className="text-xs text-gray-900 mt-1">Include country code (e.g., +91 for India, +1 for US)</p>
           </div>
 
           <div>

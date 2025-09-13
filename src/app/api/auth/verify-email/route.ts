@@ -103,8 +103,8 @@ async function handlePendingRegistrationVerification(email: string, otp: string,
     data: { emailVerified: true }
   });
   
-  // Check if phone verification is also required
-  const shouldCreateUser = !pendingReg.phone || pendingReg.phoneVerified;
+  // Check if phone verification is also complete (phone is now required)
+  const shouldCreateUser = pendingReg.phoneVerified;
   
   if (shouldCreateUser) {
     // Create the actual user account
@@ -115,7 +115,7 @@ async function handlePendingRegistrationVerification(email: string, otp: string,
         password: pendingReg.password,
         role: pendingReg.role,
         emailVerified: true,
-        phoneVerified: pendingReg.phoneVerified || false,
+        phoneVerified: true,
         profile: {
           create: {
             firstName: pendingReg.firstName,

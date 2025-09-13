@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/config';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/db';
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -19,10 +17,11 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
     const userId = params.id;
 
-    // Fetch user with provider profile
+    // Fetch user with profile and provider profile
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: {
+        profile: true,
         providerProfile: {
           select: {
             expertise: true,
@@ -45,17 +44,17 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     const transformedUser = {
       id: user.id,
       email: user.email,
-      firstName: user.firstName || 'N/A',
-      lastName: user.lastName || 'N/A',
+      firstName: user.profile?.firstName || 'N/A',
+      lastName: user.profile?.lastName || 'N/A',
       role: user.role,
-      emailVerified: user.emailVerified !== null,
+      emailVerified: user.emailVerified,
       createdAt: user.createdAt.toISOString(),
-      lastLoginAt: user.lastLoginAt?.toISOString(),
+      lastLoginAt: user.updatedAt.toISOString(), // Using updatedAt as proxy
       status: 'ACTIVE' as const, // Default status since we don't have this field in schema
       phone: user.phone,
-      timezone: user.timezone || 'Asia/Kolkata',
-      bio: user.bio,
-      phoneVerified: user.phoneVerified !== null,
+      timezone: user.profile?.timezone || 'Asia/Kolkata',
+      bio: user.profile?.bio || '',
+      phoneVerified: user.phoneVerified,
       providerProfile: user.providerProfile ? {
         expertise: user.providerProfile.expertise,
         hourlyRate: user.providerProfile.hourlyRate,
@@ -122,21 +121,13 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         }
 
         // Check if user exists first
+        console.log('Delete user: Checking if user exists:', userId);
         const userToDelete = await prisma.user.findUnique({ 
           where: { id: userId },
           include: {
             profile: true,
             providerProfile: true,
-            wallet: true,
-            seekerBookings: true,
-            providerBookings: true,
-            sentMessages: true,
-            receivedMessages: true,
-            transactions: true,
-            feedbackGiven: true,
-            feedbackReceived: true,
-            disputesInitiated: true,
-            disputesAssigned: true
+            wallet: true
           }
         });
 
@@ -162,137 +153,55 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
           email: userToDelete.email,
           hasProfile: !!userToDelete.profile,
           hasProviderProfile: !!userToDelete.providerProfile,
-          hasWallet: !!userToDelete.wallet,
-          bookingsCount: userToDelete.seekerBookings.length + userToDelete.providerBookings.length,
-          messagesCount: userToDelete.sentMessages.length + userToDelete.receivedMessages.length,
-          transactionsCount: userToDelete.transactions.length
+          hasWallet: !!userToDelete.wallet
         });
 
         try {
-          // Use a transaction to delete all related data safely
+          // Simplified delete approach - let Prisma handle cascading where configured
           await prisma.$transaction(async (tx) => {
-            // Delete in proper order to respect foreign key constraints
+            console.log('Starting user deletion transaction');
             
-            // 1. Delete dispute communications
-            await tx.disputeCommunication.deleteMany({
-              where: {
-                OR: [
-                  { fromUserId: userId },
-                  { toUserId: userId }
-                ]
-              }
-            });
-
-            // 2. Delete dispute resolution records
-            await tx.disputeResolutionRecord.deleteMany({
-              where: { resolvedBy: userId }
-            });
-
-            // 3. Delete disputes
-            await tx.dispute.deleteMany({
-              where: {
-                OR: [
-                  { initiatedBy: userId },
-                  { assignedTo: userId }
-                ]
-              }
-            });
-
-            // 4. Delete feedback
-            await tx.feedback.deleteMany({
-              where: {
-                OR: [
-                  { giverId: userId },
-                  { receiverId: userId }
-                ]
-              }
-            });
-
-            // 5. Delete transactions
-            await tx.transaction.deleteMany({
-              where: { userId }
-            });
-
-            // 6. Delete messages
-            await tx.message.deleteMany({
-              where: {
-                OR: [
-                  { senderId: userId },
-                  { receiverId: userId }
-                ]
-              }
-            });
-
-            // 7. Delete sessions related to bookings
-            const userBookings = await tx.booking.findMany({
-              where: {
-                OR: [
-                  { seekerId: userId },
-                  { providerId: userId }
-                ]
-              },
-              select: { id: true }
-            });
-
-            if (userBookings.length > 0) {
-              await tx.session.deleteMany({
-                where: {
-                  bookingId: { in: userBookings.map(b => b.id) }
-                }
-              });
-            }
-
-            // 8. Delete bookings
-            await tx.booking.deleteMany({
-              where: {
-                OR: [
-                  { seekerId: userId },
-                  { providerId: userId }
-                ]
-              }
-            });
-
-            // 9. Delete availability (if provider)
+            // Delete core related data first
             if (userToDelete.providerProfile) {
-              await tx.availability.deleteMany({
-                where: { providerId: userToDelete.providerProfile.id }
-              });
-            }
-
-            // 10. Delete provider profile
-            if (userToDelete.providerProfile) {
+              console.log('Deleting provider profile');
               await tx.provider.delete({
                 where: { id: userToDelete.providerProfile.id }
               });
             }
 
-            // 11. Delete wallet
             if (userToDelete.wallet) {
+              console.log('Deleting wallet');
               await tx.wallet.delete({
                 where: { id: userToDelete.wallet.id }
               });
             }
 
-            // 12. Delete profile
             if (userToDelete.profile) {
+              console.log('Deleting profile');
               await tx.profile.delete({
                 where: { id: userToDelete.profile.id }
               });
             }
 
-            // 13. Finally delete the user
+            // Finally delete the user - this should cascade delete most relationships
+            console.log('Deleting user');
             await tx.user.delete({
               where: { id: userId }
             });
           });
 
-          console.log('User and all related data deleted successfully:', userId);
+          console.log('User deleted successfully:', userId);
           return NextResponse.json({ message: 'User deleted successfully' });
 
-        } catch (deleteError) {
+        } catch (deleteError: any) {
           console.error('Error during user deletion:', deleteError);
+          console.error('Delete error details:', {
+            code: deleteError?.code,
+            message: deleteError?.message,
+            meta: deleteError?.meta
+          });
           return NextResponse.json(
-            { error: 'Failed to delete user and related data' },
+            { error: `Failed to delete user: ${deleteError?.message || 'Unknown error'}` },
             { status: 500 }
           );
         }

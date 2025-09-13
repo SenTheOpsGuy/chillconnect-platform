@@ -1,21 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/config';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/db';
 
 export async function GET(request: NextRequest) {
   try {
+    console.log('Users API: Starting request');
     const session = await getServerSession(authOptions);
+    console.log('Users API: Session:', session ? { id: session.user?.id, role: session.user?.role } : 'No session');
     
     if (!session) {
+      console.log('Users API: No session found');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     if (session.user.role !== 'SUPER_ADMIN') {
+      console.log('Users API: User role is not SUPER_ADMIN:', session.user.role);
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
+
+    console.log('Users API: User authorized, fetching users');
 
     // Get query parameters
     const { searchParams } = new URL(request.url);
@@ -43,9 +47,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Get total count for pagination
+    console.log('Users API: Counting users with where clause:', whereClause);
     const totalCount = await prisma.user.count({ where: whereClause });
+    console.log('Users API: Total user count:', totalCount);
 
     // Fetch paginated users with their provider profiles
+    console.log('Users API: Fetching users with pagination:', { offset, limit });
     const users = await prisma.user.findMany({
       where: whereClause,
       include: {

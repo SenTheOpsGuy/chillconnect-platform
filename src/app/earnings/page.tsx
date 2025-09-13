@@ -58,42 +58,26 @@ export default function EarningsPage() {
 
   const fetchEarnings = async () => {
     try {
-      // This would be a real API call in production
-      const mockEarnings: Earning[] = [
-        {
-          id: '1',
-          amount: 2500,
-          sessionDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-          seekerName: 'John Smith',
-          status: 'PAID',
-          payoutDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString()
+      const response = await fetch('/api/earnings', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
         },
-        {
-          id: '2',
-          amount: 1800,
-          sessionDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-          seekerName: 'Sarah Johnson',
-          status: 'PENDING'
-        },
-        {
-          id: '3',
-          amount: 3200,
-          sessionDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-          seekerName: 'Mike Wilson',
-          status: 'PROCESSING'
-        }
-      ];
+      });
 
-      setEarnings(mockEarnings);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch earnings: ${response.status}`);
+      }
+
+      const data = await response.json();
       
-      const mockStats: EarningsStats = {
-        totalEarnings: 45600,
-        pendingPayouts: 5000,
-        thisMonthEarnings: 12400,
-        lastMonthEarnings: 8900
-      };
-      
-      setStats(mockStats);
+      setEarnings(data.earnings || []);
+      setStats(data.stats || {
+        totalEarnings: 0,
+        pendingPayouts: 0,
+        thisMonthEarnings: 0,
+        lastMonthEarnings: 0
+      });
       setLoading(false);
     } catch (error) {
       console.error('Error fetching earnings:', error);

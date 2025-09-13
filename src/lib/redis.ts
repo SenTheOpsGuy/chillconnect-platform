@@ -1,19 +1,39 @@
 import { Redis } from '@upstash/redis';
+import { createClient } from 'redis';
 import { mockRedis } from './redis-mock';
 import * as dbOtpStorage from './otp-storage';
 
-// Determine which storage to use
-const useRedis = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN;
-const redis = useRedis
-  ? new Redis({
-      url: process.env.UPSTASH_REDIS_REST_URL,
-      token: process.env.UPSTASH_REDIS_REST_TOKEN,
-    })
-  : mockRedis as any;
+// Determine which Redis client to use
+const useUpstashRedis = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN;
+const useStandardRedis = process.env.REDIS_URL;
+
+let redis: any;
+
+if (useUpstashRedis) {
+  // Use Upstash Redis
+  redis = new Redis({
+    url: process.env.UPSTASH_REDIS_REST_URL,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN,
+  });
+} else if (useStandardRedis) {
+  // Use standard Redis client
+  redis = createClient({
+    url: process.env.REDIS_URL
+  });
+  // Connect to Redis (only needed for standard client)
+  redis.connect().catch(console.error);
+} else {
+  // Use mock Redis for development
+  redis = mockRedis;
+}
+
+const useRedis = useUpstashRedis || useStandardRedis;
 
 // Log Redis configuration status
 console.log('Redis Configuration:', {
   useRedis,
+  useUpstashRedis,
+  useStandardRedis,
   hasUpstashUrl: !!process.env.UPSTASH_REDIS_REST_URL,
   hasUpstashToken: !!process.env.UPSTASH_REDIS_REST_TOKEN,
   hasRedisUrl: !!process.env.REDIS_URL,
@@ -25,7 +45,11 @@ export async function storeOTP(key: string, otp: string, expirySeconds: number =
   try {
     if (useRedis) {
       console.log('Storing OTP in Redis:', { key: key.substring(0, 10) + '...', expirySeconds });
-      await redis.setex(key, expirySeconds, otp);
+      if (useStandardRedis) {
+        await redis.setEx(key, expirySeconds, otp);
+      } else {
+        await redis.setex(key, expirySeconds, otp);
+      }
     } else if (process.env.NODE_ENV === 'production') {
       // Use database storage in production when Redis is not available
       console.log('Storing OTP in database:', { key: key.substring(0, 10) + '...', expirySeconds });

@@ -21,6 +21,24 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 
+const EXPERTISE_OPTIONS = [
+  'Technology Consulting',
+  'Business Strategy',
+  'Career Coaching',
+  'Financial Planning',
+  'Marketing & Sales',
+  'Legal Advice',
+  'Health & Wellness',
+  'Education & Training',
+  'Design & Creative',
+  'Real Estate',
+  'Personal Development',
+  'Data Analysis',
+  'Software Development',
+  'Product Management',
+  'Human Resources'
+];
+
 interface UserProfile {
   id: string;
   email: string;
@@ -61,7 +79,9 @@ export default function ProfilePage() {
     phone: '',
     timezone: '',
     bio: '',
-    hourlyRate: ''
+    hourlyRate: '',
+    expertise: [] as string[],
+    yearsExperience: ''
   });
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
@@ -91,7 +111,9 @@ export default function ProfilePage() {
           phone: data.profile.phone || '',
           timezone: data.profile.timezone || 'Asia/Kolkata',
           bio: data.profile.bio || '',
-          hourlyRate: data.providerProfile?.hourlyRate?.toString() || ''
+          hourlyRate: data.providerProfile?.hourlyRate?.toString() || '',
+          expertise: data.providerProfile?.expertise || [],
+          yearsExperience: data.providerProfile?.yearsExperience?.toString() || ''
         });
       } else {
         toast({
@@ -106,7 +128,9 @@ export default function ProfilePage() {
           phone: '',
           timezone: 'Asia/Kolkata',
           bio: '',
-          hourlyRate: ''
+          hourlyRate: '',
+          expertise: [],
+          yearsExperience: ''
         });
       }
       
@@ -127,9 +151,17 @@ export default function ProfilePage() {
     try {
       const requestBody: any = { ...formData };
       
-      // Convert hourlyRate to number if it's a provider and the field is filled
-      if (providerProfile && formData.hourlyRate) {
-        requestBody.hourlyRate = parseFloat(formData.hourlyRate);
+      // Convert provider fields if it's a provider
+      if (providerProfile) {
+        if (formData.hourlyRate) {
+          requestBody.hourlyRate = parseFloat(formData.hourlyRate);
+        }
+        if (formData.expertise.length > 0) {
+          requestBody.expertise = formData.expertise;
+        }
+        if (formData.yearsExperience) {
+          requestBody.yearsExperience = parseInt(formData.yearsExperience);
+        }
       }
       
       const response = await fetch('/api/profile', {
@@ -154,10 +186,12 @@ export default function ProfilePage() {
         } : null);
 
         // Update provider profile if applicable
-        if (providerProfile && formData.hourlyRate) {
+        if (providerProfile) {
           setProviderProfile(prev => prev ? {
             ...prev,
-            hourlyRate: parseFloat(formData.hourlyRate)
+            ...(formData.hourlyRate && { hourlyRate: parseFloat(formData.hourlyRate) }),
+            ...(formData.expertise.length > 0 && { expertise: formData.expertise }),
+            ...(formData.yearsExperience && { yearsExperience: parseInt(formData.yearsExperience) })
           } : null);
         }
         
@@ -247,6 +281,15 @@ export default function ProfilePage() {
     } finally {
       setUploadingAvatar(false);
     }
+  };
+
+  const handleExpertiseToggle = (skill: string) => {
+    setFormData(prev => ({
+      ...prev,
+      expertise: prev.expertise.includes(skill)
+        ? prev.expertise.filter(s => s !== skill)
+        : [...prev.expertise, skill]
+    }));
   };
 
   if (status === 'loading' || loading) {
@@ -393,7 +436,9 @@ export default function ProfilePage() {
                             phone: profile.phone || '',
                             timezone: profile.timezone,
                             bio: profile.bio || '',
-                            hourlyRate: providerProfile?.hourlyRate?.toString() || ''
+                            hourlyRate: providerProfile?.hourlyRate?.toString() || '',
+                            expertise: providerProfile?.expertise || [],
+                            yearsExperience: providerProfile?.yearsExperience?.toString() || ''
                           });
                         }}
                         className="flex items-center space-x-2 text-gray-900 hover:text-gray-900"
@@ -483,19 +528,58 @@ export default function ProfilePage() {
                     </div>
 
                     {providerProfile && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-900 mb-2">
-                          Hourly Rate (₹)
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          value={formData.hourlyRate}
-                          onChange={(e) => setFormData({...formData, hourlyRate: e.target.value})}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white"
-                          placeholder="1500"
-                        />
-                      </div>
+                      <>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-900 mb-2">
+                            Areas of Expertise
+                          </label>
+                          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                            {EXPERTISE_OPTIONS.map((skill) => (
+                              <button
+                                key={skill}
+                                type="button"
+                                onClick={() => handleExpertiseToggle(skill)}
+                                className={`p-2 rounded-lg border text-left text-sm transition-colors ${
+                                  formData.expertise.includes(skill)
+                                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                                    : 'border-gray-300 hover:border-gray-400 text-gray-700'
+                                }`}
+                              >
+                                {skill}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-900 mb-2">
+                            Years of Experience
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            max="50"
+                            value={formData.yearsExperience}
+                            onChange={(e) => setFormData({...formData, yearsExperience: e.target.value})}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white"
+                            placeholder="5"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-900 mb-2">
+                            Hourly Rate (₹)
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={formData.hourlyRate}
+                            onChange={(e) => setFormData({...formData, hourlyRate: e.target.value})}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white"
+                            placeholder="1500"
+                          />
+                        </div>
+                      </>
                     )}
                   </form>
                 ) : (

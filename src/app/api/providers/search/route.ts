@@ -18,9 +18,22 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const params = searchSchema.parse(Object.fromEntries(searchParams));
     
-    // Build search conditions
+    // Build search conditions - include both verified and pending providers
     const searchConditions: any[] = [
-      { verificationStatus: 'VERIFIED' }
+      { 
+        verificationStatus: { 
+          in: ['VERIFIED', 'PENDING'] 
+        }
+      },
+      // Only show providers with complete profiles
+      {
+        AND: [
+          { expertise: { isEmpty: false } },
+          { hourlyRate: { gt: 0 } },
+          { yearsExperience: { gte: 0 } },
+          { bio: { not: '' } }
+        ]
+      }
     ];
 
     // Handle text-based query search (case-insensitive partial matching)

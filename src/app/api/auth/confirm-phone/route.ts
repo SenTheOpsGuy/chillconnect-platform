@@ -158,27 +158,42 @@ async function handlePendingRegistrationPhoneVerification(email: string, code: s
   // Check if email is also verified to create user
   if (updatedPendingReg.emailVerified) {
     // Create the actual user account
-    const user = await prisma.user.create({
-      data: {
-        email: updatedPendingReg.email,
-        phone: updatedPendingReg.phone,
-        password: updatedPendingReg.password,
-        role: updatedPendingReg.role,
-        emailVerified: true,
-        phoneVerified: true,
-        profile: {
-          create: {
-            firstName: updatedPendingReg.firstName,
-            lastName: updatedPendingReg.lastName
-          }
-        },
-        wallet: {
-          create: {
-            balance: 0,
-            pendingAmount: 0
-          }
+    const userData: any = {
+      email: updatedPendingReg.email,
+      phone: updatedPendingReg.phone,
+      password: updatedPendingReg.password,
+      role: updatedPendingReg.role,
+      emailVerified: true,
+      phoneVerified: true,
+      profile: {
+        create: {
+          firstName: updatedPendingReg.firstName,
+          lastName: updatedPendingReg.lastName
+        }
+      },
+      wallet: {
+        create: {
+          balance: 0,
+          pendingAmount: 0
         }
       }
+    };
+
+    // Create provider profile if user is a provider
+    if (updatedPendingReg.role === 'PROVIDER') {
+      userData.providerProfile = {
+        create: {
+          expertise: [],
+          yearsExperience: 0,
+          hourlyRate: 0,
+          bio: '',
+          verificationStatus: 'PENDING'
+        }
+      };
+    }
+
+    const user = await prisma.user.create({
+      data: userData
     });
     
     // Delete pending registration

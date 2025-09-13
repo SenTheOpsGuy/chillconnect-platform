@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/db';
 import { sendOTP } from '@/lib/email/brevo';
 import { storeOTP } from '@/lib/redis';
+import { sendVerificationSMS } from '@/lib/sms/twilio';
 import { z } from 'zod';
 
 const registerSchema = z.object({
@@ -11,7 +12,7 @@ const registerSchema = z.object({
   role: z.enum(['SEEKER', 'PROVIDER']),
   firstName: z.string().min(1),
   lastName: z.string().min(1),
-  phone: z.string().optional()
+  phone: z.string().regex(/^\+[1-9]\d{1,14}$/, 'Phone number must be in international format (e.g., +1234567890)')
 });
 
 export async function POST(req: NextRequest) {
@@ -32,17 +33,27 @@ export async function POST(req: NextRequest) {
     }
 
     // Check if phone is already in use
-    if (phone) {
-      const existingPhone = await prisma.user.findUnique({
-        where: { phone }
-      });
-      
-      if (existingPhone) {
-        return NextResponse.json(
-          { error: 'Phone number already in use' },
-          { status: 400 }
-        );
-      }
+    const existingPhone = await prisma.user.findUnique({
+      where: { phone }
+    });
+    
+    if (existingPhone) {
+      return NextResponse.json(
+        { error: 'Phone number already in use' },
+        { status: 400 }
+      );
+    }
+
+    // Check if phone is already in pending registrations
+    const existingPendingPhone = await prisma.pendingRegistration.findFirst({
+      where: { phone }
+    });
+    
+    if (existingPendingPhone && existingPendingPhone.email !== email) {
+      return NextResponse.json(
+        { error: 'Phone number already in use by another registration' },
+        { status: 400 }
+      );
     }
     
     // Hash password
@@ -74,19 +85,31 @@ export async function POST(req: NextRequest) {
       }
     });
     
-    // Generate OTP for email
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    // Generate OTPs for email and phone
+    const emailOTP = Math.floor(100000 + Math.random() * 900000).toString();
+    const phoneOTP = Math.floor(100000 + Math.random() * 900000).toString();
     
-    // Store OTP in Redis with 10-minute expiry
-    await storeOTP(`otp:${email}`, otp, 600);
+    // Store OTPs in Redis with 10-minute expiry
+    await storeOTP(`otp:${email}`, emailOTP, 600);
+    await storeOTP(`otp:phone:${phone}`, phoneOTP, 600);
     
     // Send OTP email
-    await sendOTP(email, otp);
+    await sendOTP(email, emailOTP);
+    
+    // Send SMS verification (using Twilio's verification service)
+    const smsResult = await sendVerificationSMS(phone);
+    
+    if (!smsResult.success) {
+      console.error('Failed to send SMS verification:', smsResult.error);
+      // Continue anyway - user can still verify email first
+    }
     
     return NextResponse.json({
-      message: 'Verification code sent to your email. Please verify to complete registration.',
+      message: 'Verification codes sent to your email and phone. Please verify both to complete registration.',
       email,
-      requiresVerification: true
+      phone,
+      requiresVerification: true,
+      smsStatus: smsResult.success ? 'sent' : 'failed'
     });
   } catch (error) {
     console.error('Registration error:', error);

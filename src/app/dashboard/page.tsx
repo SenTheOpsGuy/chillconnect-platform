@@ -16,13 +16,16 @@ export default function DashboardPage() {
       return;
     }
 
+    // Check if provider needs onboarding
+    if (session.user.role === 'PROVIDER') {
+      checkProviderProfile();
+      return;
+    }
+
     // Redirect to appropriate dashboard based on role
     switch (session.user.role) {
       case 'SEEKER':
         router.push('/dashboard/seeker');
-        break;
-      case 'PROVIDER':
-        router.push('/dashboard/provider');
         break;
       case 'EMPLOYEE':
         router.push('/dashboard/employee');
@@ -35,6 +38,31 @@ export default function DashboardPage() {
         break;
     }
   }, [session, status, router]);
+
+  const checkProviderProfile = async () => {
+    try {
+      const response = await fetch('/api/profile');
+      const data = await response.json();
+      
+      if (response.ok && data.providerProfile) {
+        // Check if provider profile has required fields
+        if (data.providerProfile.expertise?.length > 0 && 
+            data.providerProfile.hourlyRate > 0 && 
+            data.providerProfile.yearsExperience > 0 &&
+            data.providerProfile.bio?.trim()) {
+          router.push('/dashboard/provider');
+          return;
+        }
+      }
+      
+      // Provider profile incomplete, redirect to onboarding
+      router.push('/onboarding/provider');
+    } catch (error) {
+      console.error('Error checking provider profile:', error);
+      // On error, redirect to onboarding to be safe
+      router.push('/onboarding/provider');
+    }
+  };
 
   // Show loading while redirecting
   return (
