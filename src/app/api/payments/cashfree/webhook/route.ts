@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { verifyCashfreeWebhook } from '@/lib/payments/cashfree';
+import { sendBookingConfirmationEmails } from '@/lib/email/templates';
 
 export async function POST(req: NextRequest) {
   try {
@@ -219,13 +220,34 @@ async function createMeetingAndSendConfirmations(bookingId: string) {
       data: { meetUrl: meetingLink }
     });
 
-    // Log confirmation details (in production, send actual emails)
+    // Prepare email data
+    const emailData = {
+      id: booking.id,
+      startTime: booking.startTime.toISOString(),
+      endTime: booking.endTime.toISOString(),
+      amount: booking.amount,
+      meetUrl: meetingLink,
+      seeker: {
+        name: `${booking.seeker.profile?.firstName || ''} ${booking.seeker.profile?.lastName || ''}`.trim() || 'Customer',
+        email: booking.seeker.email || ''
+      },
+      provider: {
+        name: `${booking.provider.profile?.firstName || ''} ${booking.provider.profile?.lastName || ''}`.trim() || 'Provider',
+        email: booking.provider.email || ''
+      }
+    };
+
+    // Send confirmation emails
+    console.log('Sending booking confirmation emails...');
+    const emailResults = await sendBookingConfirmationEmails(emailData);
+    
     console.log('Booking confirmed via Cashfree payment:', {
       bookingId,
       meetingLink,
       seekerEmail: booking.seeker.email,
       providerEmail: booking.provider.email,
-      scheduledAt: booking.startTime
+      scheduledAt: booking.startTime,
+      emailResults
     });
 
   } catch (error) {

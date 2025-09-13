@@ -217,14 +217,29 @@ function BookingSuccessContent() {
             </Link>
           </div>
 
+          {/* Email Confirmation Status */}
+          <div className="mt-8 p-4 bg-green-50 rounded-lg">
+            <div className="flex items-start space-x-3">
+              <Mail className="w-5 h-5 text-green-600 mt-0.5" />
+              <div>
+                <h3 className="font-semibold text-green-900 mb-2">Confirmation Emails Sent</h3>
+                <ul className="text-sm text-green-800 space-y-1">
+                  <li>✓ Booking confirmation sent to your email</li>
+                  <li>✓ Session notification sent to your provider</li>
+                  <li>✓ You'll receive a reminder 1 hour before your session</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
           {/* Important Notes */}
-          <div className="mt-8 p-4 bg-blue-50 rounded-lg">
+          <div className="mt-6 p-4 bg-blue-50 rounded-lg">
             <h3 className="font-semibold text-blue-900 mb-2">Important Notes:</h3>
             <ul className="text-sm text-blue-800 space-y-1">
-              <li>• You will receive email confirmations and reminders</li>
               <li>• The meeting link will be active 15 minutes before your session</li>
               <li>• You can reschedule or cancel up to 24 hours before the session</li>
               <li>• A chat will be available for 24 hours after your session</li>
+              <li>• Check your email for detailed session information</li>
             </ul>
           </div>
         </div>
