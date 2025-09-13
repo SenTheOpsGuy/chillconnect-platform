@@ -22,6 +22,11 @@ export async function GET(req: NextRequest) {
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
 
+    // Get platform settings for commission rate
+    const platformSettings = await prisma.platformSettings.findFirst() || {
+      commissionRate: 0.5 // Default 50% if no settings found
+    };
+
     // Fetch all statistics in parallel
     const [
       totalUsers,
@@ -39,7 +44,7 @@ export async function GET(req: NextRequest) {
       todayBookings,
       pendingVerifications,
       disputedBookings,
-      platformBalance
+      totalBookingPayments
     ] = await Promise.all([
       // User counts
       prisma.user.count(),
@@ -126,9 +131,13 @@ export async function GET(req: NextRequest) {
         where: { status: 'DISPUTED' }
       }),
       
-      // Platform balance (total wallet balances)
-      prisma.wallet.aggregate({
-        _sum: { balance: true }
+      // Total booking payments (to calculate 50% commission from)
+      prisma.transaction.aggregate({
+        where: {
+          type: 'BOOKING_PAYMENT',
+          status: 'completed'
+        },
+        _sum: { amount: true }
       })
     ]);
 
@@ -171,7 +180,7 @@ export async function GET(req: NextRequest) {
       disputedBookings,
       systemHealth,
       todayBookings,
-      platformBalance: platformBalance._sum.balance || 0,
+      platformBalance: Math.round((Math.abs(totalBookingPayments._sum.amount || 0) * platformSettings.commissionRate) / (1 + platformSettings.commissionRate)), // Calculate platform commission based on configurable rate
       bookingCompletionRate: totalBookings > 0 ? Number(((completedBookings / totalBookings) * 100).toFixed(1)) : 0
     };
 
