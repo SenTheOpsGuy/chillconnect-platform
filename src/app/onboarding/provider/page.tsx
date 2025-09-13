@@ -178,10 +178,11 @@ export default function ProviderOnboarding() {
         });
         router.push('/dashboard/provider');
       } else {
+        console.error('Profile setup failed:', { status: response.status, data });
         toast({
           type: 'error',
           title: 'Setup Failed',
-          message: data.error || 'Failed to complete profile setup'
+          message: data.details || data.error || 'Failed to complete profile setup'
         });
       }
     } catch (error) {

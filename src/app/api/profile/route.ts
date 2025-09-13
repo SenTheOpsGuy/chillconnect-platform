@@ -64,8 +64,9 @@ export async function GET() {
 }
 
 export async function PUT(request: NextRequest) {
+  let session;
   try {
-    const session = await getServerSession(authOptions);
+    session = await getServerSession(authOptions);
     
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -73,6 +74,12 @@ export async function PUT(request: NextRequest) {
 
     const body = await request.json();
     const { firstName, lastName, phone, timezone, bio, expertise, yearsExperience, hourlyRate } = body;
+    
+    console.log('Profile update request:', {
+      userId: session.user.id,
+      userRole: session.user.role,
+      requestData: { firstName, lastName, phone, timezone, bio, expertise, yearsExperience, hourlyRate }
+    });
 
     // Update user profile
     await prisma.profile.upsert({
@@ -102,6 +109,28 @@ export async function PUT(request: NextRequest) {
 
     // Update provider profile if user is a provider
     if (session.user.role === 'PROVIDER') {
+      // Validate provider-specific data
+      if (expertise && (!Array.isArray(expertise) || expertise.length === 0)) {
+        return NextResponse.json(
+          { error: 'Expertise must be a non-empty array' },
+          { status: 400 }
+        );
+      }
+      
+      if (yearsExperience !== undefined && (typeof yearsExperience !== 'number' || yearsExperience < 0)) {
+        return NextResponse.json(
+          { error: 'Years of experience must be a non-negative number' },
+          { status: 400 }
+        );
+      }
+      
+      if (hourlyRate !== undefined && (typeof hourlyRate !== 'number' || hourlyRate <= 0)) {
+        return NextResponse.json(
+          { error: 'Hourly rate must be a positive number' },
+          { status: 400 }
+        );
+      }
+
       const updateData: any = {};
       const createData: any = {
         userId: session.user.id,
@@ -111,6 +140,8 @@ export async function PUT(request: NextRequest) {
         bio: '',
         verificationStatus: 'PENDING'
       };
+      
+      console.log('Creating/updating provider profile with data:', { updateData, createData });
 
       // Handle expertise array
       if (expertise !== undefined) {
@@ -147,8 +178,16 @@ export async function PUT(request: NextRequest) {
 
   } catch (error) {
     console.error('Error updating profile:', error);
+    console.error('Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : 'No stack trace',
+      userId: session?.user?.id
+    });
     return NextResponse.json(
-      { error: 'Failed to update profile' },
+      { 
+        error: 'Failed to update profile',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     );
   }
