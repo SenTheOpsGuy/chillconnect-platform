@@ -12,7 +12,8 @@ import {
   LogOut,
   Home,
   Users,
-  BarChart3
+  BarChart3,
+  DollarSign
 } from 'lucide-react';
 import { useEffect } from 'react';
 
@@ -87,7 +88,7 @@ export default function DashboardLayout({
           { href: '/schedule', icon: Calendar, label: 'Schedule' },
           { href: '/sessions', icon: Users, label: 'Sessions' },
           { href: '/messages', icon: MessageCircle, label: 'Messages' },
-          { href: '/earnings', icon: BarChart3, label: 'Earnings' },
+          { href: '/provider/payouts', icon: DollarSign, label: 'Payouts' },
           ...baseItems.slice(1)
         ];
       
@@ -97,6 +98,7 @@ export default function DashboardLayout({
           { href: '/unmatched-requests', icon: Search, label: 'Unmatched Requests' },
           { href: '/verifications', icon: Users, label: 'Verifications' },
           { href: '/disputes', icon: MessageCircle, label: 'Disputes' },
+          { href: '/admin/payouts', icon: DollarSign, label: 'Payouts' },
           ...baseItems.slice(1)
         ];
       
@@ -106,6 +108,7 @@ export default function DashboardLayout({
           { href: '/analytics', icon: BarChart3, label: 'Analytics' },
           { href: '/users', icon: Users, label: 'Users' },
           { href: '/reports', icon: MessageCircle, label: 'Reports' },
+          { href: '/admin/payouts', icon: DollarSign, label: 'Payouts' },
           ...baseItems.slice(1)
         ];
       

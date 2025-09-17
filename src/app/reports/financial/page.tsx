@@ -50,41 +50,17 @@ export default function FinancialReportsPage() {
 
   const fetchFinancialData = async () => {
     try {
-      const mockData: FinancialData = {
-        totalRevenue: 2456780,
-        platformCommission: 368517,
-        providerPayouts: 2088263,
-        taxableAmount: 368517,
-        monthlyRevenue: [
-          { month: 'Jan', revenue: 345000, commission: 51750, payouts: 293250 },
-          { month: 'Feb', revenue: 389000, commission: 58350, payouts: 330650 },
-          { month: 'Mar', revenue: 412000, commission: 61800, payouts: 350200 },
-          { month: 'Apr', revenue: 445000, commission: 66750, payouts: 378250 },
-          { month: 'May', revenue: 478000, commission: 71700, payouts: 406300 },
-          { month: 'Jun', revenue: 387780, commission: 58167, payouts: 329613 }
-        ],
-        revenueByCategory: [
-          { category: 'Tax Consulting', amount: 1032500, percentage: 42 },
-          { category: 'Legal Advice', amount: 638600, percentage: 26 },
-          { category: 'Financial Planning', amount: 491356, percentage: 20 },
-          { category: 'Business Strategy', amount: 294324, percentage: 12 }
-        ],
-        taxBreakdown: [
-          { category: 'Platform Commission (15%)', amount: 368517, rate: 15 },
-          { category: 'GST on Commission (18%)', amount: 66329, rate: 18 },
-          { category: 'TDS on Provider Payments (2%)', amount: 41765, rate: 2 }
-        ],
-        transactionStats: {
-          totalTransactions: 3420,
-          averageTransaction: 718,
-          refunds: 23,
-          chargebacks: 3
-        }
-      };
+      const response = await fetch('/api/reports/financial');
       
-      setData(mockData);
+      if (!response.ok) {
+        throw new Error('Failed to fetch financial data');
+      }
+      
+      const financialData = await response.json();
+      setData(financialData);
       setLoading(false);
     } catch (err) {
+      console.error('Error fetching financial data:', err);
       setError('Failed to load financial data');
       setLoading(false);
     }

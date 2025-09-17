@@ -3,7 +3,7 @@
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Calendar, Users, DollarSign, Star, TrendingUp } from 'lucide-react';
+import { Calendar, Users, DollarSign, Star } from 'lucide-react';
 import Link from 'next/link';
 
 interface ProviderStats {
@@ -166,14 +166,14 @@ export default function ProviderDashboard() {
               </div>
             </Link>
             <Link 
-              href="/earnings"
+              href="/provider/payouts"
               className="w-full text-left p-3 rounded-lg border hover:bg-gray-50 transition-colors block"
             >
               <div className="flex items-center">
-                <TrendingUp className="w-5 h-5 text-green-600 mr-3" />
+                <DollarSign className="w-5 h-5 text-green-600 mr-3" />
                 <div>
-                  <div className="font-medium text-gray-900">View Earnings</div>
-                  <div className="text-sm text-gray-800">Check your income and payouts</div>
+                  <div className="font-medium text-gray-900">Payouts & Earnings</div>
+                  <div className="text-sm text-gray-800">Manage bank account and request payouts</div>
                 </div>
               </div>
             </Link>

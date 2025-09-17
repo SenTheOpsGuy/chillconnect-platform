@@ -171,6 +171,28 @@ export default function ProviderPayoutsPage() {
     }
   };
 
+  const handleAddBankAccount = async (bankData: any) => {
+    try {
+      const response = await fetch('/api/provider/bank-account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bankData)
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        alert('Bank account added successfully! A penny test has been sent to verify your account.');
+        setShowBankForm(false);
+        fetchData();
+      } else {
+        alert(data.error || 'Failed to add bank account');
+      }
+    } catch (error) {
+      alert('Error adding bank account');
+    }
+  };
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'VERIFIED':
@@ -554,6 +576,136 @@ export default function ProviderPayoutsPage() {
                   Cancel
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Bank Account Form Modal */}
+        {showBankForm && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
+              <h3 className="text-lg font-semibold mb-4">Add Bank Account</h3>
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target as HTMLFormElement);
+                const bankData = {
+                  accountHolderName: formData.get('accountHolderName') as string,
+                  accountNumber: formData.get('accountNumber') as string,
+                  ifscCode: formData.get('ifscCode') as string,
+                  bankName: formData.get('bankName') as string,
+                  branchName: formData.get('branchName') as string,
+                  accountType: formData.get('accountType') as string
+                };
+                handleAddBankAccount(bankData);
+              }} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Account Holder Name *
+                  </label>
+                  <input
+                    type="text"
+                    name="accountHolderName"
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter full name as per bank records"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Account Number *
+                  </label>
+                  <input
+                    type="text"
+                    name="accountNumber"
+                    required
+                    minLength={9}
+                    maxLength={18}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter account number"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    IFSC Code *
+                  </label>
+                  <input
+                    type="text"
+                    name="ifscCode"
+                    required
+                    pattern="^[A-Z]{4}0[A-Z0-9]{6}$"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g., SBIN0001234"
+                    style={{ textTransform: 'uppercase' }}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">11-digit IFSC code (e.g., SBIN0001234)</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Bank Name *
+                  </label>
+                  <input
+                    type="text"
+                    name="bankName"
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g., State Bank of India"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Branch Name
+                  </label>
+                  <input
+                    type="text"
+                    name="branchName"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter branch name (optional)"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Account Type *
+                  </label>
+                  <select
+                    name="accountType"
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="SAVINGS">Savings Account</option>
+                    <option value="CURRENT">Current Account</option>
+                  </select>
+                </div>
+
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h4 className="font-semibold text-blue-900 text-sm">What happens next?</h4>
+                  <ul className="text-blue-700 text-sm mt-1 space-y-1">
+                    <li>• We'll send a small verification amount (₹1-9) to your account</li>
+                    <li>• Check your bank statement and enter the exact amount received</li>
+                    <li>• Once verified, you can request payouts to this account</li>
+                  </ul>
+                </div>
+
+                <div className="flex space-x-3 pt-4">
+                  <button
+                    type="submit"
+                    className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 font-medium"
+                  >
+                    Add Bank Account
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowBankForm(false)}
+                    className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-400 font-medium"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}

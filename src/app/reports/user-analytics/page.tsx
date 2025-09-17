@@ -8,21 +8,31 @@ import Link from 'next/link';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 
 interface UserAnalyticsData {
-  totalUsers: number;
-  activeUsers: number;
-  newUsers: number;
-  retentionRate: number;
-  userGrowth: Array<{ month: string; seekers: number; providers: number; total: number }>;
-  userDistribution: Array<{ type: string; count: number; percentage: number }>;
-  engagementMetrics: {
-    dailyActive: number;
-    weeklyActive: number;
-    monthlyActive: number;
-    avgSessionDuration: number;
+  overview: {
+    totalUsers: number;
+    activeUsers30d: number;
+    activeUsers7d: number;
+    growthRate: number;
+    newUsersThisMonth: number;
   };
-  acquisitionChannels: Array<{ channel: string; users: number; percentage: number }>;
-  userRetention: Array<{ period: string; percentage: number }>;
-  demographicData: Array<{ ageGroup: string; count: number }>;
+  usersByRole: Array<{ role: string; count: number; percentage: number }>;
+  monthlyGrowth: Array<{ month: string; newUsers: number; newProviders: number; newSeekers: number; totalUsers: number }>;
+  topLocations: Array<{ state: string; count: number; percentage: number }>;
+  recentUsers: Array<{
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    joinedAt: string;
+    location: string;
+    isActive: boolean;
+  }>;
+  engagement: {
+    dailyActiveUsers: number;
+    weeklyActiveUsers: number;
+    monthlyActiveUsers: number;
+    retentionRate: number;
+  };
 }
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
@@ -52,55 +62,17 @@ export default function UserAnalyticsPage() {
 
   const fetchUserAnalytics = async () => {
     try {
-      const mockData: UserAnalyticsData = {
-        totalUsers: 1247,
-        activeUsers: 892,
-        newUsers: 156,
-        retentionRate: 68.5,
-        userGrowth: [
-          { month: 'Jan', seekers: 890, providers: 65, total: 955 },
-          { month: 'Feb', seekers: 945, providers: 71, total: 1016 },
-          { month: 'Mar', seekers: 1024, providers: 78, total: 1102 },
-          { month: 'Apr', seekers: 1087, providers: 82, total: 1169 },
-          { month: 'May', seekers: 1156, providers: 86, total: 1242 },
-          { month: 'Jun', seekers: 1158, providers: 89, total: 1247 }
-        ],
-        userDistribution: [
-          { type: 'Seekers', count: 1058, percentage: 85 },
-          { type: 'Providers', count: 189, percentage: 15 }
-        ],
-        engagementMetrics: {
-          dailyActive: 234,
-          weeklyActive: 567,
-          monthlyActive: 892,
-          avgSessionDuration: 24.5
-        },
-        acquisitionChannels: [
-          { channel: 'Organic Search', users: 523, percentage: 42 },
-          { channel: 'Social Media', users: 374, percentage: 30 },
-          { channel: 'Direct', users: 186, percentage: 15 },
-          { channel: 'Referrals', users: 124, percentage: 10 },
-          { channel: 'Paid Ads', users: 40, percentage: 3 }
-        ],
-        userRetention: [
-          { period: 'Day 1', percentage: 85 },
-          { period: 'Day 7', percentage: 72 },
-          { period: 'Day 30', percentage: 68.5 },
-          { period: 'Day 90', percentage: 45 },
-          { period: 'Day 180', percentage: 32 }
-        ],
-        demographicData: [
-          { ageGroup: '18-25', count: 187 },
-          { ageGroup: '26-35', count: 498 },
-          { ageGroup: '36-45', count: 374 },
-          { ageGroup: '46-55', count: 142 },
-          { ageGroup: '55+', count: 46 }
-        ]
-      };
+      const response = await fetch('/api/reports/user-analytics');
       
-      setData(mockData);
+      if (!response.ok) {
+        throw new Error('Failed to fetch user analytics');
+      }
+      
+      const analyticsData = await response.json();
+      setData(analyticsData);
       setLoading(false);
     } catch (err) {
+      console.error('Error fetching user analytics:', err);
       setError('Failed to load user analytics');
       setLoading(false);
     }
@@ -184,26 +156,26 @@ export default function UserAnalyticsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-900 mb-1">Total Users</p>
-                <p className="text-2xl font-bold text-gray-900">{data.totalUsers.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-gray-900">{data.overview.totalUsers.toLocaleString()}</p>
               </div>
               <Users className="w-8 h-8 text-blue-500" />
             </div>
             <div className="mt-2 flex items-center text-sm">
               <TrendingUp className="w-4 h-4 text-green-500 mr-1" />
-              <span className="text-green-600">+{data.newUsers} this month</span>
+              <span className="text-green-600">+{data.overview.newUsersThisMonth} this month</span>
             </div>
           </div>
           
           <div className="bg-white p-6 rounded-lg shadow-sm">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-900 mb-1">Active Users</p>
-                <p className="text-2xl font-bold text-gray-900">{data.activeUsers.toLocaleString()}</p>
+                <p className="text-sm text-gray-900 mb-1">Active Users (30d)</p>
+                <p className="text-2xl font-bold text-gray-900">{data.overview.activeUsers30d.toLocaleString()}</p>
               </div>
               <UserCheck className="w-8 h-8 text-green-500" />
             </div>
             <div className="mt-2 flex items-center text-sm">
-              <span className="text-gray-900">{((data.activeUsers/data.totalUsers)*100).toFixed(1)}% of total users</span>
+              <span className="text-gray-900">{((data.overview.activeUsers30d/data.overview.totalUsers)*100).toFixed(1)}% of total users</span>
             </div>
           </div>
           
@@ -211,7 +183,7 @@ export default function UserAnalyticsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-900 mb-1">New Users</p>
-                <p className="text-2xl font-bold text-gray-900">{data.newUsers}</p>
+                <p className="text-2xl font-bold text-gray-900">{data.overview.newUsersThisMonth}</p>
               </div>
               <UserPlus className="w-8 h-8 text-purple-500" />
             </div>
@@ -223,13 +195,13 @@ export default function UserAnalyticsPage() {
           <div className="bg-white p-6 rounded-lg shadow-sm">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-900 mb-1">Retention Rate</p>
-                <p className="text-2xl font-bold text-gray-900">{data.retentionRate}%</p>
+                <p className="text-sm text-gray-900 mb-1">Growth Rate</p>
+                <p className="text-2xl font-bold text-gray-900">{data.overview.growthRate}%</p>
               </div>
               <Activity className="w-8 h-8 text-orange-500" />
             </div>
             <div className="mt-2 flex items-center text-sm">
-              <span className="text-gray-900">30-day retention</span>
+              <span className="text-gray-900">Month over month</span>
             </div>
           </div>
         </div>
