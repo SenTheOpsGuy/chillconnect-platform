@@ -10,6 +10,13 @@ const commissionSchema = z.object({
 });
 
 export async function GET(request: NextRequest, { params }: { params: { providerId: string } }) {
+  // Temporarily disabled due to database schema migration issue
+  return NextResponse.json({ 
+    error: 'Provider commission settings temporarily unavailable during database migration',
+    commissionRate: null,
+    commissionNote: null
+  }, { status: 503 });
+  
   try {
     const session = await getServerSession(authOptions);
     

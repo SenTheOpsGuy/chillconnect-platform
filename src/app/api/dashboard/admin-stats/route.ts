@@ -22,9 +22,9 @@ export async function GET(req: NextRequest) {
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
 
-    // Get platform settings for commission rate
-    const platformSettings = await prisma.platformSettings.findFirst() || {
-      commissionRate: 0.5 // Default 50% if no settings found
+    // Temporary: Use hardcoded commission rate during database migration
+    const platformSettings = {
+      commissionRate: 0.5 // Default 50% commission rate
     };
 
     // Fetch all statistics in parallel

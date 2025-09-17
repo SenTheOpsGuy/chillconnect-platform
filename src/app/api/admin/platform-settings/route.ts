@@ -14,6 +14,12 @@ const settingsSchema = z.object({
 });
 
 export async function GET() {
+  // Temporarily disabled due to database schema migration issue
+  return NextResponse.json({ 
+    error: 'Platform settings temporarily unavailable during database migration',
+    defaultCommissionRate: 0.5 
+  }, { status: 503 });
+  
   try {
     const session = await getServerSession(authOptions);
     

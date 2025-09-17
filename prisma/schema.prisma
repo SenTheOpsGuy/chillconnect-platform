@@ -110,8 +110,8 @@ model Provider {
   verificationStatus  VerificationStatus  @default(PENDING)
   governmentId        String?
   certificates        String[]
-  commissionRate      Float?              // Custom commission rate (overrides platform default)
-  commissionNote      String?             // Note for custom commission rate
+  // commissionRate      Float?              // Custom commission rate (overrides platform default) - Temporarily removed until migration applied
+  // commissionNote      String?             // Note for custom commission rate - Temporarily removed until migration applied
   availability        Availability[]
   user                User                @relation(fields: [userId], references: [id])
 }
@@ -294,16 +294,17 @@ model PendingRegistration {
   @@map("PendingRegistration")
 }
 
-model PlatformSettings {
-  id                    String    @id @default(cuid())
-  commissionRate        Float     @default(0.5)  // Default 50% commission
-  platformName          String    @default("ChillConnect")
-  supportEmail          String    @default("support@chillconnect.com")
-  maintenanceMode       Boolean   @default(false)
-  maxBookingDuration    Int       @default(480)  // Max 8 hours in minutes
-  minBookingDuration    Int       @default(30)   // Min 30 minutes
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+// Temporarily commented out until database migration is applied
+// model PlatformSettings {
+//   id                    String    @id @default(cuid())
+//   commissionRate        Float     @default(0.5)  // Default 50% commission
+//   platformName          String    @default("ChillConnect")
+//   supportEmail          String    @default("support@chillconnect.com")
+//   maintenanceMode       Boolean   @default(false)
+//   maxBookingDuration    Int       @default(480)  // Max 8 hours in minutes
+//   minBookingDuration    Int       @default(30)   // Min 30 minutes
+//   createdAt             DateTime  @default(now())
+//   updatedAt             DateTime  @updatedAt
 
-  @@map("PlatformSettings")
-}
+//   @@map("PlatformSettings")
+// }
