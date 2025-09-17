@@ -114,6 +114,12 @@ model Provider {
   // commissionNote      String?             // Note for custom commission rate - Temporarily removed until migration applied
   availability        Availability[]
   user                User                @relation(fields: [userId], references: [id])
+  
+  // Payout system relations
+  bankAccount         ProviderBankAccount?
+  deleteRequests      BankAccountDeleteRequest[]
+  earnings            ProviderEarnings[]
+  payouts             Payout[]
 }
 
 model Availability {
@@ -144,6 +150,7 @@ model Booking {
   feedback      Feedback?
   transactions  Transaction[]
   dispute       Dispute?
+  earnings      ProviderEarnings?
 }
 
 model Session {
@@ -308,3 +315,153 @@ model PendingRegistration {
 
 //   @@map("PlatformSettings")
 // }
+
+// Payout System Models
+
+model ProviderBankAccount {
+  id                  String                @id @default(cuid())
+  providerId          String                @unique
+  accountHolderName   String
+  accountNumber       String
+  ifscCode            String
+  bankName            String
+  branchName          String?
+  accountType         String                @default("SAVINGS") // SAVINGS, CURRENT
+  verificationStatus  BankAccountStatus     @default(PENDING)
+  pennyTestAmount     Float?                // Amount sent for penny testing (e.g., 1.23)
+  pennyTestReference  String?               // Reference for penny test transaction
+  pennyTestAttempts   Int                   @default(0)
+  isActive            Boolean               @default(false)
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  verifiedAt          DateTime?
+  
+  provider            Provider              @relation(fields: [providerId], references: [id])
+  deleteRequests      BankAccountDeleteRequest[]
+  payouts             Payout[]
+  
+  @@map("ProviderBankAccounts")
+}
+
+model BankAccountDeleteRequest {
+  id                  String              @id @default(cuid())
+  bankAccountId       String
+  providerId          String
+  reason              String?
+  status              DeleteRequestStatus @default(PENDING)
+  assignedTo          String?             // Employee ID
+  createdAt           DateTime            @default(now())
+  resolvedAt          DateTime?
+  resolvedBy          String?             // Employee/Admin ID
+  
+  bankAccount         ProviderBankAccount @relation(fields: [bankAccountId], references: [id])
+  provider            Provider            @relation(fields: [providerId], references: [id])
+  
+  @@map("BankAccountDeleteRequests")
+}
+
+model ProviderEarnings {
+  id                  String          @id @default(cuid())
+  providerId          String
+  bookingId           String          @unique
+  amount              Float           // Provider's share after commission
+  platformCommission Float           // Platform's commission
+  totalAmount         Float           // Original booking amount
+  status              EarningsStatus  @default(PENDING)
+  disputeDeadline     DateTime        // 24 hours after consultation completion
+  approvedAt          DateTime?
+  approvedBy          String?         // Employee/Admin ID or 'AUTO' for auto-approval
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  
+  provider            Provider        @relation(fields: [providerId], references: [id])
+  booking             Booking         @relation(fields: [bookingId], references: [id])
+  payouts             PayoutEarning[]
+  
+  @@map("ProviderEarnings")
+}
+
+model Payout {
+  id                  String          @id @default(cuid())
+  providerId          String
+  bankAccountId       String
+  requestedAmount     Float
+  actualAmount        Float?          // Final amount after any deductions
+  status              PayoutStatus    @default(REQUESTED)
+  requestedAt         DateTime        @default(now())
+  approvedAt          DateTime?
+  processedAt         DateTime?
+  rejectedAt          DateTime?
+  approvedBy          String?         // Employee/Admin ID
+  rejectionReason     String?
+  cashfreeTransferId  String?         // Cashfree transfer reference
+  cashfreeResponse    Json?           // Full Cashfree API response
+  transactionFee      Float?          // Platform transaction fee
+  notes               String?         // Admin notes
+  
+  provider            Provider        @relation(fields: [providerId], references: [id])
+  bankAccount         ProviderBankAccount @relation(fields: [bankAccountId], references: [id])
+  earnings            PayoutEarning[]
+  logs                PayoutLog[]
+  
+  @@map("Payouts")
+}
+
+model PayoutEarning {
+  id          String              @id @default(cuid())
+  payoutId    String
+  earningId   String
+  amount      Float
+  
+  payout      Payout              @relation(fields: [payoutId], references: [id])
+  earning     ProviderEarnings    @relation(fields: [earningId], references: [id])
+  
+  @@unique([payoutId, earningId])
+  @@map("PayoutEarnings")
+}
+
+model PayoutLog {
+  id          String      @id @default(cuid())
+  payoutId    String
+  action      String      // REQUESTED, APPROVED, REJECTED, PROCESSED, etc.
+  details     String?
+  performedBy String?     // User ID or 'SYSTEM'
+  metadata    Json?       // Additional data like API responses
+  createdAt   DateTime    @default(now())
+  
+  payout      Payout      @relation(fields: [payoutId], references: [id])
+  
+  @@map("PayoutLogs")
+}
+
+// Enums for Payout System
+enum BankAccountStatus {
+  PENDING         // Initial state
+  PENNY_TEST_SENT // Penny test transaction sent
+  VERIFIED        // Successfully verified
+  REJECTED        // Verification failed
+  DELETED         // Account deleted
+}
+
+enum DeleteRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum EarningsStatus {
+  PENDING         // Waiting for dispute period to end
+  APPROVED        // Available for payout
+  DISPUTED        // Under dispute
+  PAID_OUT        // Already included in a payout
+}
+
+enum PayoutStatus {
+  REQUESTED       // Provider requested payout
+  PENDING         // Waiting for admin approval
+  APPROVED        // Approved by admin, waiting for processing
+  PROCESSING      // Being processed via Cashfree
+  COMPLETED       // Successfully completed
+  FAILED          // Processing failed
+  REJECTED        // Rejected by admin
+}
