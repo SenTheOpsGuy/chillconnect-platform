@@ -537,7 +537,7 @@ export default function ProviderPayoutsPage() {
                 </button>
                 <button
                   onClick={() => setShowPennyVerification(false)}
-                  className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-400"
+                  className="flex-1 bg-gray-500 text-white py-2 px-4 rounded-md hover:bg-gray-600"
                 >
                   Cancel
                 </button>
@@ -580,7 +580,7 @@ export default function ProviderPayoutsPage() {
                 </button>
                 <button
                   onClick={() => setShowPayoutForm(false)}
-                  className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-400"
+                  className="flex-1 bg-gray-500 text-white py-2 px-4 rounded-md hover:bg-gray-600"
                 >
                   Cancel
                 </button>
@@ -709,7 +709,7 @@ export default function ProviderPayoutsPage() {
                   <button
                     type="button"
                     onClick={() => setShowBankForm(false)}
-                    className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-400 font-medium"
+                    className="flex-1 bg-gray-500 text-white py-2 px-4 rounded-md hover:bg-gray-600 font-medium"
                   >
                     Cancel
                   </button>
