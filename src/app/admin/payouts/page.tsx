@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { 
   CheckCircle, 
   XCircle, 
@@ -13,7 +14,8 @@ import {
   AlertCircle,
   Eye,
   Filter,
-  Download
+  Download,
+  ArrowLeft
 } from 'lucide-react';
 
 interface Payout {
@@ -210,6 +212,13 @@ export default function AdminPayoutsPage() {
   return (
     <div className="space-y-6">
       <div>
+        <Link
+          href={session?.user?.role === 'SUPER_ADMIN' ? '/dashboard/admin' : '/dashboard/employee'}
+          className="inline-flex items-center text-blue-600 hover:text-blue-700 mb-4"
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back to Dashboard
+        </Link>
         <h1 className="text-2xl font-bold text-gray-900">Payout Management</h1>
         <p className="text-gray-900">Review and approve provider payout requests</p>
       </div>

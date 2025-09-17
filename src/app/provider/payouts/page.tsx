@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { 
   CreditCard, 
   DollarSign, 
@@ -12,7 +13,8 @@ import {
   AlertCircle,
   Plus,
   Trash2,
-  Download
+  Download,
+  ArrowLeft
 } from 'lucide-react';
 
 interface BankAccount {
@@ -239,6 +241,13 @@ export default function ProviderPayoutsPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-6 py-8">
         <div className="mb-8">
+          <Link
+            href="/dashboard/provider"
+            className="inline-flex items-center text-blue-600 hover:text-blue-700 mb-4"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Dashboard
+          </Link>
           <h1 className="text-3xl font-bold text-gray-900">Payouts & Earnings</h1>
           <p className="text-gray-600 mt-2">Manage your bank account and track your earnings</p>
         </div>
