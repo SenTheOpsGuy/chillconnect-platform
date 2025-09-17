@@ -524,7 +524,7 @@ export default function ProviderPayoutsPage() {
                   step="0.01"
                   value={pennyAmount}
                   onChange={(e) => setPennyAmount(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900"
                   placeholder="0.00"
                 />
               </div>
@@ -562,7 +562,7 @@ export default function ProviderPayoutsPage() {
                   type="number"
                   value={payoutAmount}
                   onChange={(e) => setPayoutAmount(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900"
                   placeholder="1000"
                   min={earnings?.minimumPayout}
                   max={earnings?.availableBalance}
@@ -615,7 +615,7 @@ export default function ProviderPayoutsPage() {
                     type="text"
                     name="accountHolderName"
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                     placeholder="Enter full name as per bank records"
                   />
                 </div>
@@ -630,7 +630,7 @@ export default function ProviderPayoutsPage() {
                     required
                     minLength={9}
                     maxLength={18}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                     placeholder="Enter account number"
                   />
                 </div>
@@ -644,7 +644,7 @@ export default function ProviderPayoutsPage() {
                     name="ifscCode"
                     required
                     pattern="^[A-Z]{4}0[A-Z0-9]{6}$"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                     placeholder="e.g., SBIN0001234"
                     style={{ textTransform: 'uppercase' }}
                   />
@@ -659,7 +659,7 @@ export default function ProviderPayoutsPage() {
                     type="text"
                     name="bankName"
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                     placeholder="e.g., State Bank of India"
                   />
                 </div>
@@ -671,7 +671,7 @@ export default function ProviderPayoutsPage() {
                   <input
                     type="text"
                     name="branchName"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                     placeholder="Enter branch name (optional)"
                   />
                 </div>
@@ -683,7 +683,7 @@ export default function ProviderPayoutsPage() {
                   <select
                     name="accountType"
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                   >
                     <option value="SAVINGS">Savings Account</option>
                     <option value="CURRENT">Current Account</option>
