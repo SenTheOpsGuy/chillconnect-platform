@@ -3,7 +3,7 @@
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Calendar, Clock, Video, User, Star, MessageCircle, FileText, ArrowLeft } from 'lucide-react';
+import { Calendar, Clock, Video, User, Star, MessageCircle, FileText, ArrowLeft, CheckCircle, Key, Copy } from 'lucide-react';
 import Link from 'next/link';
 
 interface SessionData {
@@ -37,6 +37,15 @@ export default function SessionsPage() {
   const [sessions, setSessions] = useState<SessionData[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'upcoming' | 'completed' | 'all'>('upcoming');
+  
+  // OTP functionality states
+  const [showCompleteModal, setShowCompleteModal] = useState(false);
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [selectedBookingId, setSelectedBookingId] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [generatedOtp, setGeneratedOtp] = useState('');
+  const [otpExpiry, setOtpExpiry] = useState<Date | null>(null);
+  const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -76,6 +85,76 @@ export default function SessionsPage() {
       setSessions([]);
       setLoading(false);
     }
+  };
+
+  // Generate OTP for session completion (seeker only)
+  const handleGenerateOtp = async (bookingId: string) => {
+    setProcessing(true);
+    try {
+      const response = await fetch('/api/sessions/generate-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookingId })
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        setGeneratedOtp(data.otp);
+        setOtpExpiry(new Date(data.expiresAt));
+        setSelectedBookingId(bookingId);
+        setShowOtpModal(true);
+        alert('OTP generated successfully! Share this code with your provider to complete the session.');
+      } else {
+        alert(data.error || 'Failed to generate OTP');
+      }
+    } catch (error) {
+      alert('Error generating OTP');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // Complete session with OTP (provider only)
+  const handleCompleteSession = async () => {
+    if (!otpCode.trim()) {
+      alert('Please enter the OTP provided by the seeker');
+      return;
+    }
+
+    setProcessing(true);
+    try {
+      const response = await fetch('/api/sessions/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          bookingId: selectedBookingId, 
+          otp: otpCode.trim()
+        })
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        alert('Session completed successfully! Earnings have been added to your account.');
+        setShowCompleteModal(false);
+        setOtpCode('');
+        setSelectedBookingId('');
+        fetchSessions(); // Refresh the sessions list
+      } else {
+        alert(data.error || 'Failed to complete session');
+      }
+    } catch (error) {
+      alert('Error completing session');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // Copy OTP to clipboard
+  const copyOtpToClipboard = () => {
+    navigator.clipboard.writeText(generatedOtp);
+    alert('OTP copied to clipboard!');
   };
 
   // Keep the old mock data as fallback for now
@@ -356,6 +435,36 @@ export default function SessionsPage() {
                         </>
                       )}
 
+                      {/* Session Completion Actions */}
+                      {sessionItem.status === 'CONFIRMED' && (
+                        <>
+                          {session?.user?.role === 'PROVIDER' && (
+                            <button
+                              onClick={() => {
+                                setSelectedBookingId(sessionItem.bookingId);
+                                setShowCompleteModal(true);
+                              }}
+                              disabled={processing}
+                              className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                            >
+                              <CheckCircle className="w-4 h-4 mr-2" />
+                              Complete Session
+                            </button>
+                          )}
+                          
+                          {session?.user?.role === 'SEEKER' && (
+                            <button
+                              onClick={() => handleGenerateOtp(sessionItem.bookingId)}
+                              disabled={processing}
+                              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                            >
+                              <Key className="w-4 h-4 mr-2" />
+                              Generate OTP
+                            </button>
+                          )}
+                        </>
+                      )}
+
                       <Link
                         href={`/bookings?booking_id=${sessionItem.bookingId}`}
                         className="inline-flex items-center px-3 py-2 border border-gray-300 text-gray-900 rounded-lg hover:bg-gray-50"
@@ -367,6 +476,119 @@ export default function SessionsPage() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Complete Session Modal (Provider) */}
+        {showCompleteModal && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg max-w-md w-full p-6">
+              <h3 className="text-lg font-semibold mb-4">Complete Session</h3>
+              <p className="text-gray-900 mb-4">
+                Enter the OTP provided by the seeker to complete this session and confirm that the consultation was successful.
+              </p>
+              
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Enter OTP *
+                </label>
+                <input
+                  type="text"
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="Enter 6-digit OTP"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 text-center text-lg font-mono"
+                  maxLength={6}
+                />
+                <p className="text-sm text-gray-900 mt-1">
+                  Ask the seeker to generate and share the OTP with you.
+                </p>
+              </div>
+
+              <div className="flex space-x-3">
+                <button
+                  onClick={handleCompleteSession}
+                  disabled={processing || otpCode.length !== 6}
+                  className="flex-1 bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 disabled:opacity-50 font-medium"
+                >
+                  {processing ? 'Completing...' : 'Complete Session'}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowCompleteModal(false);
+                    setOtpCode('');
+                    setSelectedBookingId('');
+                  }}
+                  disabled={processing}
+                  className="flex-1 bg-gray-500 text-white py-2 px-4 rounded-md hover:bg-gray-600 font-medium"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* OTP Display Modal (Seeker) */}
+        {showOtpModal && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg max-w-md w-full p-6">
+              <h3 className="text-lg font-semibold mb-4">Session Completion OTP</h3>
+              <p className="text-gray-900 mb-4">
+                Share this OTP with your provider to complete the session and confirm that the consultation was successful.
+              </p>
+              
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Your OTP Code
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={generatedOtp}
+                    readOnly
+                    className="w-full px-3 py-3 border border-gray-300 rounded-md bg-gray-50 text-gray-900 text-center text-2xl font-mono font-bold"
+                  />
+                  <button
+                    onClick={copyOtpToClipboard}
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 p-2 text-gray-500 hover:text-gray-700"
+                  >
+                    <Copy className="w-4 h-4" />
+                  </button>
+                </div>
+                {otpExpiry && (
+                  <p className="text-sm text-red-600 mt-2">
+                    Expires at: {otpExpiry.toLocaleTimeString()} (Valid for 15 minutes)
+                  </p>
+                )}
+              </div>
+
+              <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 mb-4">
+                <p className="text-sm text-yellow-800">
+                  <strong>Important:</strong> Only share this OTP with your provider. This code will expire in 15 minutes for security.
+                </p>
+              </div>
+
+              <div className="flex space-x-3">
+                <button
+                  onClick={copyOtpToClipboard}
+                  className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 font-medium"
+                >
+                  Copy OTP
+                </button>
+                <button
+                  onClick={() => {
+                    setShowOtpModal(false);
+                    setGeneratedOtp('');
+                    setOtpExpiry(null);
+                    setSelectedBookingId('');
+                  }}
+                  className="flex-1 bg-gray-500 text-white py-2 px-4 rounded-md hover:bg-gray-600 font-medium"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>
